@@ -1,0 +1,204 @@
+import React, { useState } from 'react';
+import { Plus, Search, Phone, Mail, MapPin, Tag, Calendar, Home, Building, Users as UsersIcon } from 'lucide-react';
+import { mockCustomers, mockBusiness } from '../../data/mockData';
+import { tradeConfigs } from '../../data/tradeConfigs';
+import { Customer } from '../../types';
+
+const CustomersList = () => {
+  const [searchTerm, setSearchTerm] = useState('');
+  const [propertyFilter, setPropertyFilter] = useState<string>('all');
+
+  const tradeConfig = tradeConfigs[mockBusiness.primaryTrade];
+
+  const filteredCustomers = mockCustomers.filter(customer => {
+    const matchesSearch = customer.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         customer.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         customer.address.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         customer.tags.some(tag => tag.toLowerCase().includes(searchTerm.toLowerCase()));
+    
+    const matchesProperty = propertyFilter === 'all' || customer.propertyType === propertyFilter;
+    
+    return matchesSearch && matchesProperty;
+  });
+
+  const getPropertyTypeIcon = (type?: string) => {
+    switch (type) {
+      case 'residential': return <Home className="text-green-600\" size={16} />;
+      case 'commercial': return <Building className="text-blue-600" size={16} />;
+      case 'hoa': return <UsersIcon className="text-purple-600" size={16} />;
+      case 'rental': return <Home className="text-orange-600" size={16} />;
+      default: return <Home className="text-gray-600" size={16} />;
+    }
+  };
+
+  const getPropertyTypeColor = (type?: string) => {
+    switch (type) {
+      case 'residential': return 'bg-green-100 text-green-800';
+      case 'commercial': return 'bg-blue-100 text-blue-800';
+      case 'hoa': return 'bg-purple-100 text-purple-800';
+      case 'rental': return 'bg-orange-100 text-orange-800';
+      default: return 'bg-gray-100 text-gray-800';
+    }
+  };
+
+  const getMemphisArea = (address: string) => {
+    if (address.includes('Poplar')) return 'Midtown/East Memphis';
+    if (address.includes('Main') || address.includes('Beale')) return 'Downtown';
+    if (address.includes('Germantown')) return 'Germantown';
+    if (address.includes('Union')) return 'Midtown';
+    return 'Memphis Metro';
+  };
+
+  return (
+    <div className="p-6">
+      <div className="flex items-center justify-between mb-6">
+        <div className="flex items-center space-x-3">
+          <span className="text-2xl">{tradeConfig.icon}</span>
+          <div>
+            <h1 className="text-2xl font-bold text-slate-900">{tradeConfig.name} Customers</h1>
+            <p className="text-slate-600">Manage customer relationships and {tradeConfig.name.toLowerCase()} service history</p>
+          </div>
+        </div>
+        
+        <button className="flex items-center space-x-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700">
+          <Plus size={16} />
+          <span>Add Customer</span>
+        </button>
+      </div>
+
+      {/* Search & Filters */}
+      <div className="bg-white rounded-lg p-4 mb-6 shadow-sm border border-slate-200">
+        <div className="flex flex-wrap gap-4">
+          <div className="flex-1 min-w-64">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400" size={20} />
+              <input
+                type="text"
+                placeholder="Search customers by name, email, address, or tags..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-10 pr-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent w-full"
+              />
+            </div>
+          </div>
+          
+          <select
+            value={propertyFilter}
+            onChange={(e) => setPropertyFilter(e.target.value)}
+            className="px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          >
+            <option value="all">All Property Types</option>
+            <option value="residential">Residential</option>
+            <option value="commercial">Commercial</option>
+            <option value="hoa">HOA/Community</option>
+            <option value="rental">Rental Property</option>
+          </select>
+        </div>
+      </div>
+
+      {/* Customers Grid */}
+      <div className="grid gap-6">
+        {filteredCustomers.map((customer) => (
+          <div key={customer.id} className="bg-white rounded-lg p-6 shadow-sm border border-slate-200 hover:shadow-md transition-shadow">
+            <div className="flex items-start justify-between mb-4">
+              <div className="flex-1">
+                <div className="flex items-center space-x-3 mb-2">
+                  {getPropertyTypeIcon(customer.propertyType)}
+                  <h3 className="text-xl font-semibold text-slate-900">{customer.name}</h3>
+                  <div className="flex space-x-2">
+                    {customer.propertyType && (
+                      <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${getPropertyTypeColor(customer.propertyType)}`}>
+                        {customer.propertyType}
+                      </span>
+                    )}
+                    {customer.tags.slice(1).map((tag, index) => (
+                      <span
+                        key={index}
+                        className="inline-flex px-2 py-1 text-xs font-medium rounded-full bg-slate-100 text-slate-600"
+                      >
+                        {tag.replace('-', ' ')}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+                {customer.notes && (
+                  <p className="text-slate-600 mb-3">{customer.notes}</p>
+                )}
+              </div>
+              
+              <div className="text-right">
+                <p className="text-lg font-bold text-green-600">${customer.totalRevenue.toLocaleString()}</p>
+                <p className="text-sm text-slate-500">Total Revenue</p>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
+              <div className="flex items-center space-x-2">
+                <Phone className="text-slate-400" size={16} />
+                <span className="text-sm text-slate-900">{customer.phone}</span>
+              </div>
+              
+              <div className="flex items-center space-x-2">
+                <Mail className="text-slate-400" size={16} />
+                <span className="text-sm text-slate-900">{customer.email}</span>
+              </div>
+              
+              <div className="flex items-center space-x-2">
+                <MapPin className="text-slate-400" size={16} />
+                <div>
+                  <span className="text-sm text-slate-900">{getMemphisArea(customer.address)}</span>
+                  <p className="text-xs text-slate-600">{customer.address}</p>
+                </div>
+              </div>
+              
+              <div className="flex items-center space-x-2">
+                <Calendar className="text-slate-400" size={16} />
+                <span className="text-sm text-slate-900">
+                  Last contact: {customer.lastContact.toLocaleDateString()}
+                </span>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-between pt-4 border-t border-slate-200">
+              <div className="flex items-center space-x-6">
+                <div>
+                  <p className="text-lg font-semibold text-slate-900">{customer.jobCount}</p>
+                  <p className="text-sm text-slate-600">{tradeConfig.name} Jobs</p>
+                </div>
+                
+                <div>
+                  <p className="text-lg font-semibold text-slate-900">
+                    ${(customer.totalRevenue / customer.jobCount).toFixed(0)}
+                  </p>
+                  <p className="text-sm text-slate-600">Avg Job Value</p>
+                </div>
+              </div>
+              
+              <div className="flex space-x-2">
+                <button className="text-blue-600 hover:text-blue-800 text-sm font-medium">
+                  View History
+                </button>
+                <button className="text-green-600 hover:text-green-800 text-sm font-medium">
+                  Schedule {tradeConfig.name} Service
+                </button>
+                <button className="text-slate-600 hover:text-slate-800 text-sm font-medium">
+                  Edit
+                </button>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {filteredCustomers.length === 0 && (
+        <div className="text-center py-12">
+          <UsersIcon className="mx-auto text-slate-400 mb-4" size={48} />
+          <p className="text-slate-500 text-lg mb-4">No customers found</p>
+          <p className="text-slate-400">Try adjusting your search criteria</p>
+        </div>
+      )}
+    </div>
+  );
+};
+
+export default CustomersList;
