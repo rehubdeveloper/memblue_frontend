@@ -599,7 +599,7 @@ const TradeSelection: React.FC<TradeSelectionProps> = ({ onComplete, login }) =>
             </div>
           </div>
         )}
-        <p className=' mt-4 inline'>Already Have An Account? <p onClick={login} className='mt-4 text-blue-600 text-sm hover:underline inline'>Login</p></p>
+        <p className=' mt-4 inline'>Already Have An Account? <p onClick={login} className='mt-4 cursor-pointer text-blue-600 text-sm hover:underline inline'>Login</p></p>
       </div>
     </div>
   );
