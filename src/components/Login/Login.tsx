@@ -3,9 +3,10 @@ import Cookies from 'js-cookie';
 
 interface LoginPageProps {
     completeLogin: () => void;
+    signUp: () => void;
 }
 
-const LoginPage: React.FC<LoginPageProps> = ({ completeLogin }) => {
+const LoginPage: React.FC<LoginPageProps> = ({ completeLogin, signUp }) => {
     const [username, setUsername] = useState('');
     const [password, setPassword] = useState('');
     const [errorMsg, setErrorMsg] = useState('');
@@ -78,7 +79,7 @@ const LoginPage: React.FC<LoginPageProps> = ({ completeLogin }) => {
                         {loading ? 'Logging in...' : 'Login'}
                     </button>
                 </form>
-                <p className="text-center text-sm text-slate-500 mt-4">Don’t have an account? <a href="/register" className="text-blue-600 hover:underline">Register</a></p>
+                <p className="text-center text-sm text-slate-500 mt-4">Don’t have an account? <p onClick={signUp} className="text-blue-600 hover:underline">Register</p></p>
             </div>
         </div>
     );

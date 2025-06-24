@@ -35,6 +35,7 @@ interface FormData {
 
 interface TradeSelectionProps {
   onComplete: (formData: FormData) => void;
+  login: () => void;
 }
 
 // Trade configs with mapping to backend names
@@ -75,7 +76,7 @@ const tradeNameMapping: Record<string, string> = {
   'general-contractor': 'general_contractor_pro'
 };
 
-const TradeSelection: React.FC<TradeSelectionProps> = ({ onComplete }) => {
+const TradeSelection: React.FC<TradeSelectionProps> = ({ onComplete, login }) => {
   const [step, setStep] = useState<number>(1);
   const [showPassword, setShowPassword] = useState<boolean>(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState<boolean>(false);
@@ -217,6 +218,7 @@ const TradeSelection: React.FC<TradeSelectionProps> = ({ onComplete }) => {
         <div className="text-center mb-6 sm:mb-8">
           <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 mb-2">Welcome to MemBlue</h1>
           <p className="text-slate-600 text-sm sm:text-base">Memphis's premier trade operations platform</p>
+
         </div>
 
         {/* Progress Bar */}
@@ -233,7 +235,9 @@ const TradeSelection: React.FC<TradeSelectionProps> = ({ onComplete }) => {
                 )}
               </React.Fragment>
             ))}
+
           </div>
+
         </div>
 
         {/* Step 1: Personal Information */}
@@ -595,6 +599,7 @@ const TradeSelection: React.FC<TradeSelectionProps> = ({ onComplete }) => {
             </div>
           </div>
         )}
+        <p className=' mt-4 inline'>Already Have An Account? <p onClick={login} className='mt-4 text-blue-600 text-sm hover:underline inline'>Login</p></p>
       </div>
     </div>
   );

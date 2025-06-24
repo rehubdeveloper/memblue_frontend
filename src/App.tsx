@@ -40,11 +40,18 @@ function App() {
 
 
   if (showLogin) {
-    return <LoginPage completeLogin={() => {
-      setShowLogin(false)
-      setShowLanding(false)
-      setBusinessSetup(true)
-    }} />
+    return <LoginPage
+      completeLogin={() => {
+        setShowLogin(false)
+        setShowLanding(false)
+        setBusinessSetup(true)
+      }}
+      signUp={() => {
+        setShowLogin(false)
+        setBusinessSetup(false)
+        setShowLanding(false)
+      }}
+    />
   }
 
   // Show landing page by default
@@ -69,7 +76,12 @@ function App() {
         onComplete={(userData) => {
           if (userData !== null) {
             setShowLanding(true)
+            setBusinessSetup(false)
           }
+        }}
+        login={() => {
+          setShowLogin(true)
+          setBusinessSetup(true)
         }}
       />
     );
