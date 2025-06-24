@@ -16,6 +16,7 @@ import TradeSpecificJobForm from './components/Jobs/TradeSpecificJobForm';
 import TradeSpecificEstimate from './components/Estimates/TradeSpecificEstimate';
 import LandingPage from './components/Landing/LandingPage';
 import { TradeType } from './types';
+import LoginPage from './components/Login/Login';
 
 function App() {
   const { currentUser, isAuthenticated, switchUser } = useAuth();
@@ -26,14 +27,29 @@ function App() {
   const [showEstimateForm, setShowEstimateForm] = useState(false);
   const [businessSetup, setBusinessSetup] = useState(mockBusiness.setupComplete);
   const [showLanding, setShowLanding] = useState(true);
+  const [showLogin, setShowLogin] = useState(false)
 
   const handleGetStarted = () => {
     setShowLanding(false);
   };
 
+  const handleLogin = () => {
+    setShowLogin(true)
+  }
+
+
+
+  if (showLogin) {
+    return <LoginPage completeLogin={() => {
+      setShowLogin(false)
+      setShowLanding(false)
+      setBusinessSetup(true)
+    }} />
+  }
+
   // Show landing page by default
   if (showLanding) {
-    return <LandingPage onGetStarted={handleGetStarted} />;
+    return <LandingPage onGetStarted={handleGetStarted} onLogin={handleLogin} />;
   }
 
   if (!isAuthenticated) {
@@ -50,9 +66,10 @@ function App() {
   if (!businessSetup) {
     return (
       <TradeSelection
-        onComplete={(primaryTrade, secondaryTrades, businessType) => {
-          console.log('Business setup:', { primaryTrade, secondaryTrades, businessType });
-          setBusinessSetup(true);
+        onComplete={(userData) => {
+          if (userData !== null) {
+            setShowLanding(true)
+          }
         }}
       />
     );
@@ -159,18 +176,18 @@ function App() {
 
   return (
     <div className="flex h-screen bg-slate-50 overflow-hidden">
-      <Sidebar 
-        currentUser={currentUser} 
-        activeTab={activeTab} 
-        onTabChange={setActiveTab} 
+      <Sidebar
+        currentUser={currentUser}
+        activeTab={activeTab}
+        onTabChange={setActiveTab}
       />
-      
+
       <div className="flex-1 flex flex-col overflow-hidden lg:ml-0">
-        <Header 
-          currentUser={currentUser} 
-          onUserSwitch={switchUser} 
+        <Header
+          currentUser={currentUser}
+          onUserSwitch={switchUser}
         />
-        
+
         <main className="flex-1 overflow-auto">
           {renderContent()}
         </main>
