@@ -73,7 +73,7 @@ const tradeNameMapping: Record<string, string> = {
   electrical: 'electrician_pro',
   plumbing: 'plumber_pro',
   locksmith: 'locksmith_pro',
-  'general-contractor': 'general_contractor_pro'
+  'general-contractor': 'gc_pro'
 };
 
 const TradeSelection: React.FC<TradeSelectionProps> = ({ onComplete, login }) => {
@@ -93,7 +93,7 @@ const TradeSelection: React.FC<TradeSelectionProps> = ({ onComplete, login }) =>
     phone_number: '',
     primary_trade: '',
     secondary_trades: [],
-    business_type: 'solo_business'
+    business_type: 'solo_operator'
   });
 
   const validateStep = (currentStep: number): boolean => {
@@ -128,7 +128,19 @@ const TradeSelection: React.FC<TradeSelectionProps> = ({ onComplete, login }) =>
   };
 
   const handleInputChange = <K extends keyof FormData>(field: K, value: FormData[K]): void => {
-    setFormData(prev => ({ ...prev, [field]: value }));
+    setFormData(prev => {
+      // If changing primary_trade, remove it from secondary_trades if it exists
+      if (field === 'primary_trade') {
+        const newSecondaryTrades = prev.secondary_trades.filter(trade => trade !== value);
+        return {
+          ...prev,
+          [field]: value,
+          secondary_trades: newSecondaryTrades
+        };
+      }
+      return { ...prev, [field]: value };
+    });
+
     if (errors[field as keyof Errors]) {
       setErrors(prev => ({ ...prev, [field]: '' }));
     }
@@ -158,10 +170,13 @@ const TradeSelection: React.FC<TradeSelectionProps> = ({ onComplete, login }) =>
 
   const submitToBackend = async (userData: FormData): Promise<any> => {
     // Format data for backend with proper trade names
+    // Ensure primary trade is not included in secondary trades
+    const cleanSecondaryTrades = userData.secondary_trades.filter(trade => trade !== userData.primary_trade);
+
     const payload = {
       ...userData,
       primary_trade: tradeNameMapping[userData.primary_trade] || userData.primary_trade,
-      secondary_trades: userData.secondary_trades.map(trade => tradeNameMapping[trade] || trade)
+      secondary_trades: cleanSecondaryTrades.map(trade => tradeNameMapping[trade] || trade)
     };
 
     console.log('Sending payload:', payload);
@@ -523,8 +538,8 @@ const TradeSelection: React.FC<TradeSelectionProps> = ({ onComplete, login }) =>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6 max-w-2xl mx-auto">
               <button
-                onClick={() => handleInputChange('business_type', 'solo_business')}
-                className={`p-4 sm:p-6 rounded-lg border-2 transition-all hover:shadow-md ${formData.business_type === 'solo_business'
+                onClick={() => handleInputChange('business_type', 'solo_operator')}
+                className={`p-4 sm:p-6 rounded-lg border-2 transition-all hover:shadow-md ${formData.business_type === 'solo_operator'
                   ? 'border-blue-600 bg-blue-50'
                   : 'border-slate-200 hover:border-slate-300'
                   }`}
@@ -536,7 +551,7 @@ const TradeSelection: React.FC<TradeSelectionProps> = ({ onComplete, login }) =>
                     Just you handling jobs and customers
                   </p>
                 </div>
-                {formData.business_type === 'solo_business' && (
+                {formData.business_type === 'solo_operator' && (
                   <div className="mt-2 sm:mt-3 flex justify-center">
                     <Check className="text-blue-600" size={20} />
                   </div>
