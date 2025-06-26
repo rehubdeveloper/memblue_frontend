@@ -1,7 +1,8 @@
-import React from 'react';
+import React, { useContext } from 'react';
 import { User, Bell, Search, MapPin } from 'lucide-react';
 import { User as UserType } from '../../types';
 import { mockBusiness } from '../../data/mockData';
+import { AuthContext, useAuth } from '../../context/AppContext';
 
 interface HeaderProps {
   currentUser: UserType;
@@ -9,6 +10,15 @@ interface HeaderProps {
 }
 
 const Header: React.FC<HeaderProps> = ({ currentUser, onUserSwitch }) => {
+  const context = useContext(AuthContext);
+  const user = context?.user;
+
+  const capitalize = (str: any) => {
+    if (!str) return '';
+    return str.charAt(0).toUpperCase() + str.slice(1).toLowerCase();
+  };
+
+
   return (
     <header className="bg-white border-b border-slate-200 px-4 lg:px-6 py-4">
       <div className="flex items-center justify-between">
@@ -22,7 +32,7 @@ const Header: React.FC<HeaderProps> = ({ currentUser, onUserSwitch }) => {
               className="pl-10 pr-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent w-full"
             />
           </div>
-          
+
           {/* Service Area Indicator */}
           <div className="flex items-center space-x-2 px-2 lg:px-3 py-2 bg-blue-50 rounded-lg">
             <MapPin className="text-blue-600" size={16} />
@@ -61,11 +71,11 @@ const Header: React.FC<HeaderProps> = ({ currentUser, onUserSwitch }) => {
           {/* User Avatar */}
           <div className="flex items-center space-x-2">
             <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center">
-              <span className="text-white text-sm font-semibold">{currentUser.name.charAt(0)}</span>
+              <span className="text-white text-sm font-semibold">{user?.first_name.charAt(0)}</span>
             </div>
             <div className="hidden sm:block">
-              <span className="text-sm font-medium text-slate-700">{currentUser.name.split(' ')[0]}</span>
-              <p className="text-xs text-slate-500">{mockBusiness.primaryTrade.toUpperCase()}</p>
+              <span className="text-sm font-medium text-slate-700">{capitalize(user?.first_name)}</span>
+              <p className="text-xs text-slate-500">{user?.primary_trade.toUpperCase()}</p>
             </div>
           </div>
         </div>

@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import Cookies from 'js-cookie';
+import { useAuth } from '../../context/AppContext';
 
 interface LoginPageProps {
     completeLogin: () => void;
@@ -11,6 +12,7 @@ const LoginPage: React.FC<LoginPageProps> = ({ completeLogin, signUp }) => {
     const [password, setPassword] = useState('');
     const [errorMsg, setErrorMsg] = useState('');
     const [loading, setLoading] = useState(false);
+    const { refetchProfile } = useAuth()
 
     const handleLogin = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -32,8 +34,12 @@ const LoginPage: React.FC<LoginPageProps> = ({ completeLogin, signUp }) => {
             }
 
             const data = await response.json();
-            Cookies.set('token', data.token, { expires: 7 }); // expires in 7 days
-            alert('Login successful!');
+
+            localStorage.setItem('token', data.token)
+
+            const profile = await refetchProfile();
+
+            console.log(profile)
             completeLogin();
             // Optional: Redirect or update UI state
         } catch (error: any) {

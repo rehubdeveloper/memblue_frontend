@@ -1,11 +1,13 @@
-import React from 'react';
+import React, { useContext } from 'react';
 import { Calendar, DollarSign, Users, ClipboardList, AlertTriangle, TrendingUp, Wrench, MapPin } from 'lucide-react';
 import { mockJobs, mockCustomers, mockInventory, mockBusiness } from '../../data/mockData';
 import { tradeConfigs } from '../../data/tradeConfigs';
+import { useAuth } from '../../context/AppContext';
 
 const DashboardOverview = () => {
   const tradeConfig = tradeConfigs[mockBusiness.primaryTrade];
-  
+  const { user } = useAuth()
+
   const todayJobs = mockJobs.filter(job => {
     const today = new Date();
     const jobDate = new Date(job.scheduledTime);
@@ -59,7 +61,7 @@ const DashboardOverview = () => {
       <div className="mb-6 lg:mb-8">
         <div className="flex items-center space-x-3 mb-2">
           <span className="text-2xl">{tradeConfig.icon}</span>
-          <h1 className="text-xl lg:text-2xl font-bold text-slate-900">{tradeConfig.name} Dashboard</h1>
+          <h1 className="text-xl lg:text-2xl font-bold text-slate-900">{user?.primary_trade ? user.primary_trade.toUpperCase() : 'TRADE'} Dashboard</h1>
         </div>
         <p className="text-slate-600 text-sm lg:text-base">Welcome back! Here's what's happening with your Memphis operations today.</p>
       </div>
@@ -105,11 +107,10 @@ const DashboardOverview = () => {
                     <p className="text-xs lg:text-sm font-medium text-slate-900">
                       {new Date(job.scheduledTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                     </p>
-                    <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${
-                      job.status === 'confirmed' ? 'bg-green-100 text-green-800' :
+                    <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${job.status === 'confirmed' ? 'bg-green-100 text-green-800' :
                       job.status === 'in-progress' ? 'bg-blue-100 text-blue-800' :
-                      'bg-yellow-100 text-yellow-800'
-                    }`}>
+                        'bg-yellow-100 text-yellow-800'
+                      }`}>
                       {job.status.replace('-', ' ')}
                     </span>
                   </div>
@@ -157,7 +158,7 @@ const DashboardOverview = () => {
               </div>
             </div>
           )}
-          
+
           {lowStockItems.length > 0 && (
             <div className="flex items-start space-x-3 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
               <AlertTriangle className="text-yellow-500 mt-1 flex-shrink-0" size={16} />

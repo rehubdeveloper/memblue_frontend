@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useContext, useEffect, useState } from 'react';
 import { useAuth } from './hooks/useAuth';
 import { mockBusiness } from './data/mockData';
 import TradeSelection from './components/Setup/TradeSelection';
@@ -17,9 +17,22 @@ import TradeSpecificEstimate from './components/Estimates/TradeSpecificEstimate'
 import LandingPage from './components/Landing/LandingPage';
 import { TradeType } from './types';
 import LoginPage from './components/Login/Login';
+import { AuthContext } from './context/AppContext';
+
+// Loading Spinner Component
+const LoadingSpinner = () => (
+  <div className="min-h-screen bg-gray-100 flex items-center justify-center">
+    <div className="bg-white p-8 rounded-lg shadow-md flex flex-col items-center">
+      <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mb-4"></div>
+      <p className="text-gray-600 text-lg">Loading your profile...</p>
+    </div>
+  </div>
+);
 
 function App() {
-  const { currentUser, isAuthenticated, switchUser } = useAuth();
+  const authContext = useContext(AuthContext);
+  const isLoading = authContext?.isLoading ?? false;
+  const { currentUser, isAuthenticated, switchUser, } = useAuth();
   const [activeTab, setActiveTab] = useState(
     currentUser?.role === 'technician' ? 'mobile-dashboard' : 'dashboard'
   );
@@ -27,29 +40,40 @@ function App() {
   const [showEstimateForm, setShowEstimateForm] = useState(false);
   const [businessSetup, setBusinessSetup] = useState(mockBusiness.setupComplete);
   const [showLanding, setShowLanding] = useState(true);
-  const [showLogin, setShowLogin] = useState(false)
+  const [showLogin, setShowLogin] = useState(false);
 
   const handleGetStarted = () => {
     setShowLanding(false);
   };
 
   const handleLogin = () => {
-    setShowLogin(true)
+    setShowLogin(true);
+  };
+  const getToken = () => {
+    const token = localStorage.getItem("token")
+    return token
   }
-
-
+  const [token, setToken] = useState<string | null>(null)
+  useEffect(() => {
+    const newtoken = getToken();
+    setToken(newtoken)
+  }, []);
+  // Show loading spinner while fetching user profile
+  if (isLoading && !token == null) {
+    return <LoadingSpinner />;
+  }
 
   if (showLogin) {
     return <LoginPage
       completeLogin={() => {
-        setShowLogin(false)
-        setShowLanding(false)
-        setBusinessSetup(true)
+        setShowLogin(false);
+        setShowLanding(false);
+        setBusinessSetup(true);
       }}
       signUp={() => {
-        setShowLogin(false)
-        setBusinessSetup(false)
-        setShowLanding(false)
+        setShowLogin(false);
+        setBusinessSetup(false);
+        setShowLanding(false);
       }}
     />
   }
@@ -75,13 +99,13 @@ function App() {
       <TradeSelection
         onComplete={(userData) => {
           if (userData !== null) {
-            setShowLanding(true)
-            setBusinessSetup(false)
+            setShowLanding(true);
+            setBusinessSetup(false);
           }
         }}
         login={() => {
-          setShowLogin(true)
-          setBusinessSetup(true)
+          setShowLogin(true);
+          setBusinessSetup(true);
         }}
       />
     );

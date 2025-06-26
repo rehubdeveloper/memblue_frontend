@@ -1,11 +1,11 @@
 import React, { useState } from 'react';
-import { 
-  Calendar, 
-  ClipboardList, 
-  Users, 
-  FileText, 
-  Package, 
-  BarChart3, 
+import {
+  Calendar,
+  ClipboardList,
+  Users,
+  FileText,
+  Package,
+  BarChart3,
   Settings,
   Home,
   Smartphone,
@@ -16,6 +16,7 @@ import {
 import { User } from '../../types';
 import { tradeConfigs } from '../../data/tradeConfigs';
 import { mockBusiness } from '../../data/mockData';
+import { useAuth } from '../../context/AppContext';
 
 interface SidebarProps {
   currentUser: User;
@@ -26,7 +27,7 @@ interface SidebarProps {
 const Sidebar: React.FC<SidebarProps> = ({ currentUser, activeTab, onTabChange }) => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const tradeConfig = tradeConfigs[mockBusiness.primaryTrade];
-  
+
   const adminMenuItems = [
     { id: 'dashboard', label: 'Dashboard', icon: Home },
     { id: 'schedule', label: 'Schedule', icon: Calendar },
@@ -51,6 +52,14 @@ const Sidebar: React.FC<SidebarProps> = ({ currentUser, activeTab, onTabChange }
     setIsMobileMenuOpen(false);
   };
 
+  const { user } = useAuth();
+
+  const capitalize = (str: any) => {
+    if (!str) return '';
+    return str.charAt(0).toUpperCase() + str.slice(1).toLowerCase();
+  };
+
+
   return (
     <>
       {/* Mobile Menu Button */}
@@ -63,7 +72,7 @@ const Sidebar: React.FC<SidebarProps> = ({ currentUser, activeTab, onTabChange }
 
       {/* Mobile Overlay */}
       {isMobileMenuOpen && (
-        <div 
+        <div
           className="lg:hidden fixed inset-0 bg-black bg-opacity-50 z-40"
           onClick={() => setIsMobileMenuOpen(false)}
         />
@@ -93,13 +102,13 @@ const Sidebar: React.FC<SidebarProps> = ({ currentUser, activeTab, onTabChange }
               <p className="text-xs text-slate-400">Memphis Trade Ops</p>
             </div>
           </div>
-          
+
           {/* Trade Badge */}
           <div className="flex items-center space-x-2 p-2 bg-slate-800 rounded-lg">
             <span className="text-lg">{tradeConfig.icon}</span>
             <div className="min-w-0 flex-1">
-              <p className="text-sm font-medium text-white truncate">{tradeConfig.name}</p>
-              <p className="text-xs text-slate-400 truncate">{mockBusiness.name}</p>
+              <p className="text-sm font-medium text-white truncate">{user?.username || 'name'}</p>
+              <p className="text-xs text-slate-400 truncate">{`${capitalize(user?.primary_trade)} services`}</p>
             </div>
           </div>
         </div>
@@ -107,10 +116,10 @@ const Sidebar: React.FC<SidebarProps> = ({ currentUser, activeTab, onTabChange }
         <div className="mb-6">
           <div className="flex items-center space-x-3 p-3 bg-slate-800 rounded-lg">
             <div className="w-10 h-10 bg-blue-500 rounded-full flex items-center justify-center flex-shrink-0">
-              <span className="text-sm font-semibold">{currentUser.name.charAt(0)}</span>
+              <span className="text-sm font-semibold">{user?.first_name.charAt(0)}</span>
             </div>
             <div className="min-w-0 flex-1">
-              <p className="font-medium truncate">{currentUser.name}</p>
+              <p className="font-medium truncate">{`${capitalize(user?.first_name)} ${capitalize(user?.last_name)}`}</p>
               <p className="text-xs text-slate-400 capitalize">{currentUser.role}</p>
             </div>
           </div>
@@ -123,11 +132,10 @@ const Sidebar: React.FC<SidebarProps> = ({ currentUser, activeTab, onTabChange }
               <button
                 key={item.id}
                 onClick={() => handleMenuItemClick(item.id)}
-                className={`w-full flex items-center space-x-3 px-3 py-3 rounded-lg text-left transition-colors ${
-                  activeTab === item.id
-                    ? 'bg-blue-600 text-white'
-                    : 'text-slate-300 hover:bg-slate-800 hover:text-white'
-                }`}
+                className={`w-full flex items-center space-x-3 px-3 py-3 rounded-lg text-left transition-colors ${activeTab === item.id
+                  ? 'bg-blue-600 text-white'
+                  : 'text-slate-300 hover:bg-slate-800 hover:text-white'
+                  }`}
               >
                 <Icon size={20} className="flex-shrink-0" />
                 <span className="truncate">{item.label}</span>
