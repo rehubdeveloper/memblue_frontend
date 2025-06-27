@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Plus, Search, AlertTriangle, Package, TrendingDown, Edit, Wrench } from 'lucide-react';
+import { Plus, Search, AlertTriangle, Package, TrendingDown, Edit, Wrench, Trash2, X } from 'lucide-react';
 import { mockBusiness } from '../../data/mockData';
 import { tradeConfigs } from '../../data/tradeConfigs';
 import { useAuth } from '../../context/AppContext';
@@ -58,9 +58,11 @@ const InventoryList = () => {
   };
 
   const [openDialog, setOpenDialog] = useState(false);
+  const [editingItem, setEditingItem] = useState<InventoryItem | null>(null);
+  const [deleteConfirm, setDeleteConfirm] = useState<number | null>(null);
   const [loading, setLoading] = useState(false);
 
-  const { createInventory, inventoryList, user } = useAuth();
+  const { createInventory, updateInventory, deleteInventory, inventoryList, user } = useAuth();
 
   // Convert inventoryList to typed array, handle null/undefined and ensure proper types
   const inventory: InventoryItem[] = inventoryList ?
@@ -72,6 +74,42 @@ const InventoryList = () => {
       reorder_at: typeof item.reorder_at === 'string' ? parseInt(item.reorder_at) : item.reorder_at,
       ideal_stock: typeof item.ideal_stock === 'string' ? parseInt(item.ideal_stock) : item.ideal_stock,
     })) : []) : [];
+
+  const resetForm = () => {
+    setForm({
+      name: '',
+      sku: '',
+      supplier: '',
+      cost_per_unit: '',
+      stock_level: '',
+      reorder_at: '',
+      category: '',
+      ideal_stock: '',
+      is_active: true,
+    });
+    setEditingItem(null);
+  };
+
+  const openCreateDialog = () => {
+    resetForm();
+    setOpenDialog(true);
+  };
+
+  const openEditDialog = (item: InventoryItem) => {
+    setForm({
+      name: item.name,
+      sku: item.sku,
+      supplier: item.supplier,
+      cost_per_unit: item.cost_per_unit.toString(),
+      stock_level: item.stock_level.toString(),
+      reorder_at: item.reorder_at.toString(),
+      category: item.category,
+      ideal_stock: item.ideal_stock.toString(),
+      is_active: item.is_active,
+    });
+    setEditingItem(item);
+    setOpenDialog(true);
+  };
 
   const handleSubmit = async () => {
     setLoading(true);
@@ -85,26 +123,41 @@ const InventoryList = () => {
       ideal_stock: parseInt(form.ideal_stock) || 0,
     };
 
-    const res = await createInventory(formData);
+    try {
+      let res;
+      if (editingItem && editingItem.id) {
+        // Update existing item
+        res = await updateInventory(editingItem.id, formData);
+      } else {
+        // Create new item
+        res = await createInventory(formData);
+      }
 
-    if (res && res.name) {
-      setOpenDialog(false);
-      // Reset form
-      setForm({
-        name: '',
-        sku: '',
-        supplier: '',
-        cost_per_unit: '',
-        stock_level: '',
-        reorder_at: '',
-        category: '',
-        ideal_stock: '',
-        is_active: true,
-      });
-    } else {
-      console.warn("Something went wrong or invalid response");
+      if (res && res.name) {
+        setOpenDialog(false);
+        resetForm();
+      } else {
+        console.warn("Something went wrong or invalid response");
+      }
+    } catch (error) {
+      console.error("Error saving inventory item:", error);
+      // You might want to show an error message to the user here
     }
 
+    setLoading(false);
+  };
+
+  const handleDelete = async (id: number) => {
+    setLoading(true);
+    try {
+      const success = await deleteInventory(id);
+      if (success) {
+        setDeleteConfirm(null);
+      }
+    } catch (error) {
+      console.error("Error deleting inventory item:", error);
+      // You might want to show an error message to the user here
+    }
     setLoading(false);
   };
 
@@ -130,10 +183,19 @@ const InventoryList = () => {
   const lowStockItems = inventory.filter(item => item.stock_level <= item.reorder_at);
 
   const getStockStatus = (item: InventoryItem) => {
-    if (item.stock_level <= item.reorder_at) return 'low';
-    if (item.stock_level <= item.reorder_at * 1.5) return 'warning';
+    const { stock_level, reorder_at, ideal_stock } = item;
+
+    const delta = ideal_stock - reorder_at;
+
+    if (delta === 0) return 'neutral'; // avoid divide-by-zero if edge case
+
+    const progress = ((stock_level - reorder_at) / delta) * 100;
+
+    if (progress <= 40) return 'low';
+    if (progress <= 60) return 'warning';
     return 'good';
   };
+
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -161,16 +223,27 @@ const InventoryList = () => {
           </div>
         </div>
 
-        <button onClick={() => setOpenDialog(true)} className="flex items-center space-x-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700">
+        <button onClick={openCreateDialog} className="flex items-center space-x-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700">
           <Plus size={16} />
           <span>Add Item</span>
         </button>
       </div>
 
+      {/* Create/Edit Dialog */}
       {openDialog && (
         <div className="fixed inset-0 z-50 bg-black bg-opacity-50 flex items-center justify-center">
           <div className="bg-white w-full max-w-3xl rounded-xl shadow-lg p-6">
-            <h2 className="text-xl font-bold text-slate-800 mb-4">Add Inventory Item</h2>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-xl font-bold text-slate-800">
+                {editingItem ? 'Edit Inventory Item' : 'Add Inventory Item'}
+              </h2>
+              <button
+                onClick={() => setOpenDialog(false)}
+                className="text-slate-400 hover:text-slate-600"
+              >
+                <X size={20} />
+              </button>
+            </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
@@ -273,7 +346,39 @@ const InventoryList = () => {
             <div className="flex justify-end mt-6 space-x-3">
               <button onClick={() => setOpenDialog(false)} className="px-4 py-2 bg-gray-100 text-gray-700 rounded hover:bg-gray-200">Cancel</button>
               <button onClick={handleSubmit} disabled={loading} className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50">
-                {loading ? "Saving..." : "Save"}
+                {loading ? "Saving..." : editingItem ? "Update" : "Save"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirmation Dialog */}
+      {deleteConfirm && (
+        <div className="fixed inset-0 z-50 bg-black bg-opacity-50 flex items-center justify-center">
+          <div className="bg-white w-full max-w-md rounded-xl shadow-lg p-6">
+            <div className="flex items-center space-x-3 mb-4">
+              <AlertTriangle className="text-red-500" size={24} />
+              <h2 className="text-xl font-bold text-slate-800">Confirm Delete</h2>
+            </div>
+
+            <p className="text-slate-600 mb-6">
+              Are you sure you want to delete this inventory item? This action cannot be undone.
+            </p>
+
+            <div className="flex justify-end space-x-3">
+              <button
+                onClick={() => setDeleteConfirm(null)}
+                className="px-4 py-2 bg-gray-100 text-gray-700 rounded hover:bg-gray-200"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => handleDelete(deleteConfirm)}
+                disabled={loading}
+                className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 disabled:opacity-50"
+              >
+                {loading ? "Deleting..." : "Delete"}
               </button>
             </div>
           </div>
@@ -345,7 +450,13 @@ const InventoryList = () => {
       <div className="grid gap-4">
         {filteredInventory.map((item) => {
           const status = getStockStatus(item);
-          const stockPercentage = Math.min((item.stock_level / (item.reorder_at * 2)) * 100, 100);
+          const stockPercentage = Math.max(0,
+            item.ideal_stock > 0
+              ? Math.min((item.stock_level / item.ideal_stock) * 100, 100)
+              : 0
+          );
+
+
           const itemIsTradeSpecific = isTradeSpecific(item);
 
           return (
@@ -428,8 +539,19 @@ const InventoryList = () => {
                   <button className="text-green-600 hover:text-green-800 text-sm font-medium">
                     Reorder
                   </button>
-                  <button className="text-slate-600 hover:text-slate-800 text-sm font-medium">
-                    Edit
+                  <button
+                    onClick={() => openEditDialog(item)}
+                    className="flex items-center space-x-1 text-slate-600 hover:text-slate-800 text-sm font-medium"
+                  >
+                    <Edit size={14} />
+                    <span>Edit</span>
+                  </button>
+                  <button
+                    onClick={() => setDeleteConfirm(item.id || 0)}
+                    className="flex items-center space-x-1 text-red-600 hover:text-red-800 text-sm font-medium"
+                  >
+                    <Trash2 size={14} />
+                    <span>Delete</span>
                   </button>
                 </div>
               </div>
