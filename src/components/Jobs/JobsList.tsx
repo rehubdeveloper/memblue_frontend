@@ -3,6 +3,7 @@ import { Plus, Search, Filter, MapPin, Clock, User, Phone, Wrench } from 'lucide
 import { mockJobs, mockCustomers, mockUsers, mockBusiness } from '../../data/mockData';
 import { tradeConfigs } from '../../data/tradeConfigs';
 import { Job } from '../../types';
+import { useAuth } from '../../context/AppContext'
 
 interface JobsListProps {
   onNewJob?: () => void;
@@ -18,12 +19,12 @@ const JobsList: React.FC<JobsListProps> = ({ onNewJob }) => {
   const filteredJobs = mockJobs.filter(job => {
     const customer = mockCustomers.find(c => c.id === job.customerId);
     const matchesSearch = job.jobType.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         job.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         customer?.name.toLowerCase().includes(searchTerm.toLowerCase());
-    
+      job.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      customer?.name.toLowerCase().includes(searchTerm.toLowerCase());
+
     const matchesStatus = statusFilter === 'all' || job.status === statusFilter;
     const matchesPriority = priorityFilter === 'all' || job.priority === priorityFilter;
-    
+
     return matchesSearch && matchesStatus && matchesPriority;
   });
 
@@ -94,23 +95,30 @@ const JobsList: React.FC<JobsListProps> = ({ onNewJob }) => {
     }
   };
 
+  const { user } = useAuth();
+
+  const capitalize = (str: any) => {
+    if (!str) return '';
+    return str.charAt(0).toUpperCase() + str.slice(1).toLowerCase();
+  };
+
   return (
     <div className="p-4 lg:p-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-4 lg:mb-6 gap-4">
         <div className="flex items-center space-x-3">
           <span className="text-2xl">{tradeConfig.icon}</span>
           <div>
-            <h1 className="text-xl lg:text-2xl font-bold text-slate-900">{tradeConfig.name} Work Orders</h1>
-            <p className="text-slate-600 text-sm lg:text-base">Manage and track all {tradeConfig.name.toLowerCase()} service jobs</p>
+            <h1 className="text-xl lg:text-2xl font-bold text-slate-900">{capitalize(user?.primary_trade)} Work Orders</h1>
+            <p className="text-slate-600 text-sm lg:text-base">Manage and track all {user?.primary_trade.toLowerCase()} service jobs</p>
           </div>
         </div>
-        
-        <button 
+
+        <button
           onClick={onNewJob}
           className="flex items-center justify-center space-x-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 w-full sm:w-auto"
         >
           <Plus size={16} />
-          <span>New {tradeConfig.name} Job</span>
+          <span>New {capitalize(user?.primary_trade)} Job</span>
         </button>
       </div>
 
@@ -129,7 +137,7 @@ const JobsList: React.FC<JobsListProps> = ({ onNewJob }) => {
               />
             </div>
           </div>
-          
+
           <div className="flex flex-col sm:flex-row gap-2">
             <select
               value={statusFilter}
@@ -144,7 +152,7 @@ const JobsList: React.FC<JobsListProps> = ({ onNewJob }) => {
               <option value="completed">Completed</option>
               <option value="cancelled">Cancelled</option>
             </select>
-            
+
             <select
               value={priorityFilter}
               onChange={(e) => setPriorityFilter(e.target.value)}
@@ -166,7 +174,7 @@ const JobsList: React.FC<JobsListProps> = ({ onNewJob }) => {
           const customer = getCustomerInfo(job.customerId);
           const technician = getTechnicianInfo(job.assignedUserId);
           const memphisArea = getMemphisArea(job.location);
-          
+
           return (
             <div key={job.id} className="bg-white rounded-lg p-4 lg:p-6 shadow-sm border border-slate-200 hover:shadow-md transition-shadow">
               <div className="flex flex-col lg:flex-row lg:items-start justify-between mb-4 gap-4">
@@ -182,11 +190,11 @@ const JobsList: React.FC<JobsListProps> = ({ onNewJob }) => {
                     </span>
                   </div>
                   <p className="text-slate-600 mb-3 text-sm lg:text-base">{job.description}</p>
-                  
+
                   {/* Trade-specific data display */}
                   {renderTradeSpecificData(job)}
                 </div>
-                
+
                 <div className="text-left lg:text-right flex-shrink-0">
                   <p className="text-sm text-slate-500">Job #{job.id.slice(-6)}</p>
                   <p className="text-sm text-slate-500">
@@ -208,7 +216,7 @@ const JobsList: React.FC<JobsListProps> = ({ onNewJob }) => {
                     )}
                   </div>
                 </div>
-                
+
                 <div className="flex items-center space-x-2">
                   <MapPin className="text-slate-400 flex-shrink-0" size={16} />
                   <div className="min-w-0 flex-1">
@@ -216,7 +224,7 @@ const JobsList: React.FC<JobsListProps> = ({ onNewJob }) => {
                     <p className="text-xs text-slate-600 truncate">{job.location}</p>
                   </div>
                 </div>
-                
+
                 <div className="flex items-center space-x-2">
                   <Clock className="text-slate-400 flex-shrink-0" size={16} />
                   <div>
@@ -243,7 +251,7 @@ const JobsList: React.FC<JobsListProps> = ({ onNewJob }) => {
                     <span className="text-sm text-slate-500">Unassigned</span>
                   )}
                 </div>
-                
+
                 <div className="flex flex-col sm:flex-row gap-2">
                   <button className="text-blue-600 hover:text-blue-800 text-sm font-medium px-3 py-1 rounded border border-blue-200 hover:bg-blue-50">
                     View Details

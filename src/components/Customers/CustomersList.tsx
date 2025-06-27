@@ -3,6 +3,7 @@ import { Plus, Search, Phone, Mail, MapPin, Tag, Calendar, Home, Building, Users
 import { mockCustomers, mockBusiness } from '../../data/mockData';
 import { tradeConfigs } from '../../data/tradeConfigs';
 import { Customer } from '../../types';
+import { useAuth } from '../../context/AppContext';
 
 const CustomersList = () => {
   const [searchTerm, setSearchTerm] = useState('');
@@ -12,12 +13,12 @@ const CustomersList = () => {
 
   const filteredCustomers = mockCustomers.filter(customer => {
     const matchesSearch = customer.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         customer.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         customer.address.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         customer.tags.some(tag => tag.toLowerCase().includes(searchTerm.toLowerCase()));
-    
+      customer.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      customer.address.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      customer.tags.some(tag => tag.toLowerCase().includes(searchTerm.toLowerCase()));
+
     const matchesProperty = propertyFilter === 'all' || customer.propertyType === propertyFilter;
-    
+
     return matchesSearch && matchesProperty;
   });
 
@@ -49,17 +50,24 @@ const CustomersList = () => {
     return 'Memphis Metro';
   };
 
+  const capitalize = (str: any) => {
+    if (!str) return '';
+    return str.charAt(0).toUpperCase() + str.slice(1).toLowerCase();
+  };
+
+  const { user } = useAuth();
+
   return (
     <div className="p-6">
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center space-x-3">
           <span className="text-2xl">{tradeConfig.icon}</span>
           <div>
-            <h1 className="text-2xl font-bold text-slate-900">{tradeConfig.name} Customers</h1>
-            <p className="text-slate-600">Manage customer relationships and {tradeConfig.name.toLowerCase()} service history</p>
+            <h1 className="text-2xl font-bold text-slate-900">{capitalize(user?.primary_trade)} Customers</h1>
+            <p className="text-slate-600">Manage customer relationships and {user?.primary_trade.toLowerCase()} service history</p>
           </div>
         </div>
-        
+
         <button className="flex items-center space-x-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700">
           <Plus size={16} />
           <span>Add Customer</span>
@@ -81,7 +89,7 @@ const CustomersList = () => {
               />
             </div>
           </div>
-          
+
           <select
             value={propertyFilter}
             onChange={(e) => setPropertyFilter(e.target.value)}
@@ -125,7 +133,7 @@ const CustomersList = () => {
                   <p className="text-slate-600 mb-3">{customer.notes}</p>
                 )}
               </div>
-              
+
               <div className="text-right">
                 <p className="text-lg font-bold text-green-600">${customer.totalRevenue.toLocaleString()}</p>
                 <p className="text-sm text-slate-500">Total Revenue</p>
@@ -137,12 +145,12 @@ const CustomersList = () => {
                 <Phone className="text-slate-400" size={16} />
                 <span className="text-sm text-slate-900">{customer.phone}</span>
               </div>
-              
+
               <div className="flex items-center space-x-2">
                 <Mail className="text-slate-400" size={16} />
                 <span className="text-sm text-slate-900">{customer.email}</span>
               </div>
-              
+
               <div className="flex items-center space-x-2">
                 <MapPin className="text-slate-400" size={16} />
                 <div>
@@ -150,7 +158,7 @@ const CustomersList = () => {
                   <p className="text-xs text-slate-600">{customer.address}</p>
                 </div>
               </div>
-              
+
               <div className="flex items-center space-x-2">
                 <Calendar className="text-slate-400" size={16} />
                 <span className="text-sm text-slate-900">
@@ -165,7 +173,7 @@ const CustomersList = () => {
                   <p className="text-lg font-semibold text-slate-900">{customer.jobCount}</p>
                   <p className="text-sm text-slate-600">{tradeConfig.name} Jobs</p>
                 </div>
-                
+
                 <div>
                   <p className="text-lg font-semibold text-slate-900">
                     ${(customer.totalRevenue / customer.jobCount).toFixed(0)}
@@ -173,7 +181,7 @@ const CustomersList = () => {
                   <p className="text-sm text-slate-600">Avg Job Value</p>
                 </div>
               </div>
-              
+
               <div className="flex space-x-2">
                 <button className="text-blue-600 hover:text-blue-800 text-sm font-medium">
                   View History

@@ -30,7 +30,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     const [inventoryList, setInventoryList] = useState(null)
 
     const fetchUserProfile = async (): Promise<void> => {
-        const token = localStorage.getItem("token");
+        const token = Cookies.get("token");
 
         if (!token) {
             setUser(null);
@@ -52,7 +52,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             }
 
             const data = await response.json();
-            console.log(data)
+            console.log("Profile Fetched!")
             setUser(data);
             // No return value here, just update state
         } catch (error) {

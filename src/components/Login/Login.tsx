@@ -36,7 +36,7 @@ const LoginPage: React.FC<LoginPageProps> = ({ completeLogin, signUp }) => {
             const data = await response.json();
 
             localStorage.setItem('token', data.token)
-
+            Cookies.set('token', data.token, { expires: 7 })
             await refetchProfile();
 
             console.log("profile logged in!")
