@@ -66,6 +66,7 @@ function App() {
   if (showLogin) {
     return <LoginPage
       completeLogin={() => {
+        alert('Login Successful!')
         setShowLogin(false);
         setShowLanding(false);
         setBusinessSetup(true);
@@ -99,6 +100,7 @@ function App() {
       <TradeSelection
         onComplete={(userData) => {
           if (userData !== null) {
+            alert('Registration Successful, Welcome To Memblue!')
             setShowLanding(true);
             setBusinessSetup(false);
           }

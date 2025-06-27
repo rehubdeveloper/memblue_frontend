@@ -37,9 +37,9 @@ const LoginPage: React.FC<LoginPageProps> = ({ completeLogin, signUp }) => {
 
             localStorage.setItem('token', data.token)
 
-            const profile = await refetchProfile();
+            await refetchProfile();
 
-            console.log(profile)
+            console.log("profile logged in!")
             completeLogin();
             // Optional: Redirect or update UI state
         } catch (error: any) {

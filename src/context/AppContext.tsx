@@ -114,7 +114,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
             const data = await response.json();
             setInventoryList(data)
-            console.log("Inventory fetched:", inventoryList);
+            console.log("Inventories fetched:", data && Array.isArray(data) ? data.length : null);
 
             return data;
 
