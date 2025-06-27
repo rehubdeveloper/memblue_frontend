@@ -23,6 +23,19 @@ export interface Business {
   setupComplete: boolean;
 }
 
+// types/customer.ts
+export interface CustomerFormData {
+  name: string;
+  email: string;
+  phone: string;
+  address: string;
+  property_type: 'residential' | 'commercial';
+  tags: string;
+  notes: string;
+  last_contact: string;
+}
+
+
 export type TradeType = 'hvac' | 'electrical' | 'plumbing' | 'locksmith' | 'general-contractor';
 
 export interface TradeConfig {

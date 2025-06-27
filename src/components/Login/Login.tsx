@@ -85,7 +85,7 @@ const LoginPage: React.FC<LoginPageProps> = ({ completeLogin, signUp }) => {
                         {loading ? 'Logging in...' : 'Login'}
                     </button>
                 </form>
-                <h3 className="text-center text-sm text-slate-500 mt-4">Don’t have an account? <p onClick={signUp} className="text-blue-600 cursor-pointer hover:underline">Register</p></h3>
+                <span ><p className="text-center text-sm text-slate-500 mt-4">Don’t have an account?</p> <p onClick={signUp} className="text-blue-600 cursor-pointer hover:underline">Register</p></span>
             </div>
         </div>
     );

@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Plus, Search, Phone, Mail, MapPin, Tag, Calendar, Home, Building, Users as UsersIcon } from 'lucide-react';
 import { mockCustomers, mockBusiness } from '../../data/mockData';
 import { tradeConfigs } from '../../data/tradeConfigs';
-import { Customer } from '../../types';
+import { Customer, CustomerFormData } from '../../types';
 import { useAuth } from '../../context/AppContext';
 
 const CustomersList = () => {
@@ -55,6 +55,81 @@ const CustomersList = () => {
     return str.charAt(0).toUpperCase() + str.slice(1).toLowerCase();
   };
 
+  const initialCustomerState: CustomerFormData = {
+    name: '',
+    email: '',
+    phone: '',
+    address: '',
+    property_type: 'residential',
+    tags: '',
+    notes: '',
+    last_contact: '',
+  };
+
+  const [formData, setFormData] = useState<CustomerFormData>(initialCustomerState);
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({
+      ...prev,
+      [name]: value
+    }));
+  };
+
+  const [openDialog, setOpenDialog] = useState(false)
+
+  const { createCustomer } = useAuth()
+
+  const [isSaving, setISaving] = useState(false)
+
+  const AddCustomerDialog = () => {
+    const [formData, setFormData] = useState<CustomerFormData>(initialCustomerState);
+
+    const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
+      const { name, value } = e.target;
+      setFormData(prev => ({
+        ...prev,
+        [name]: value
+      }));
+    };
+
+    const handleSubmit = async (e: React.FormEvent) => {
+      e.preventDefault();
+      setISaving(true)
+      await createCustomer(formData)
+      setFormData(initialCustomerState);
+      setISaving(false)
+    };
+
+    return (
+      <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50 p-4">
+        <div className="bg-white rounded-xl shadow-lg w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+          <div className="flex justify-between items-center p-6 border-b">
+            <h2 className="text-xl font-semibold">Add New Customer</h2>
+            <button onClick={() => setOpenDialog(false)} className="text-gray-500 hover:text-gray-700 text-2xl leading-none">&times;</button>
+          </div>
+          <form onSubmit={handleSubmit} className="p-6 space-y-4">
+            <input type="text" name="name" value={formData.name} onChange={handleChange} placeholder="Name" required className="w-full border rounded-lg px-4 py-2" />
+            <input type="email" name="email" value={formData.email} onChange={handleChange} placeholder="Email" className="w-full border rounded-lg px-4 py-2" />
+            <input type="text" name="phone" value={formData.phone} onChange={handleChange} placeholder="Phone" className="w-full border rounded-lg px-4 py-2" />
+            <input type="text" name="address" value={formData.address} onChange={handleChange} placeholder="Address" className="w-full border rounded-lg px-4 py-2" />
+            <select name="property_type" value={formData.property_type} onChange={handleChange} className="w-full border rounded-lg px-4 py-2">
+              <option value="residential">Residential</option>
+              <option value="commercial">Commercial</option>
+            </select>
+            <input type="text" name="tags" value={formData.tags} onChange={handleChange} placeholder="Tags (comma separated)" className="w-full border rounded-lg px-4 py-2" />
+            <textarea name="notes" value={formData.notes} onChange={handleChange} placeholder="Notes" className="w-full border rounded-lg px-4 py-2" rows={3}></textarea>
+            <input type="date" name="last_contact" value={formData.last_contact} onChange={handleChange} className="w-full border rounded-lg px-4 py-2" />
+            <div className="flex justify-end">
+              <button type="submit" className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700">{isSaving ? 'Saving...' : 'Save'}</button>
+            </div>
+          </form>
+        </div>
+      </div>
+    );
+  };
+
+
   const { user } = useAuth();
 
   return (
@@ -68,11 +143,15 @@ const CustomersList = () => {
           </div>
         </div>
 
-        <button className="flex items-center space-x-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700">
+        <button onClick={() => (setOpenDialog(true))} className="flex items-center space-x-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700">
           <Plus size={16} />
           <span>Add Customer</span>
         </button>
       </div>
+
+      {openDialog && (
+        <AddCustomerDialog />
+      )}
 
       {/* Search & Filters */}
       <div className="bg-white rounded-lg p-4 mb-6 shadow-sm border border-slate-200">

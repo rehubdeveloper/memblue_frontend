@@ -53,6 +53,7 @@ interface AuthContextType {
   addToast: (message: string, type: Toast['type']) => void;
   toastQueue: Toast[];
   removeToast: (id: number) => void;
+  createCustomer: (formData: any) => Promise<any>;
 }
 
 export const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -258,6 +259,43 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
+  const createCustomer = async (formData: any) => {
+    const token = getToken();
+
+    const payload = {
+      ...formData,
+      tags: formData.tags?.split(',').map((tag: string) => tag.trim()) || [],
+      owner: user?.id, // 🔥 Add owner from authenticated user
+    };
+
+    try {
+      const res = await fetch('https://memblue-backend.onrender.com/api/users/customers/', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Token ${token}`
+        },
+        body: JSON.stringify(payload)
+      });
+
+      if (!res.ok) {
+        const errorText = await res.text();
+        throw new Error(`Failed to create customer: ${errorText}`);
+      }
+
+      const data = await res.json();
+      console.log(`Customer "${data.name}" created successfully`)
+      setToastMessage(`Customer "${data.name}" created successfully`);
+      setToastType('success')
+      return data;
+    } catch (error) {
+      console.error('error: ', error)
+      setToastMessage(`${error}: Customer Creation Failed!`)
+      setToastType('error')
+    }
+  };
+
+
   const refetchInventory = async (): Promise<void> => {
     await getInventory();
   };
@@ -288,7 +326,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       toastType,
       addToast,
       toastQueue,
-      removeToast
+      removeToast,
+      createCustomer
     }}>
       {children}
     </AuthContext.Provider>
