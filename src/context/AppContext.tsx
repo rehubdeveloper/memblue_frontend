@@ -265,7 +265,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   useEffect(() => {
     const initialize = async () => {
       await fetchUserProfile();
-      await getInventory();
+      if (inventoryList == null) {
+        await getInventory();
+      }
     };
     initialize();
   }, []);

@@ -181,7 +181,8 @@ const InventoryList = () => {
   });
 
   const categories = [...new Set(inventory.map(item => item.category))];
-  const lowStockItems = inventory.filter(item => item.stock_level <= item.reorder_at);
+
+
 
   const getStockStatus = (item: InventoryItem) => {
     const { stock_level, reorder_at, ideal_stock } = item;
@@ -196,6 +197,8 @@ const InventoryList = () => {
     if (progress <= 60) return 'warning';
     return 'good';
   };
+
+  const lowStockItems = inventory.filter(item => getStockStatus(item) === 'low');
 
 
   const getStatusColor = (status: string) => {

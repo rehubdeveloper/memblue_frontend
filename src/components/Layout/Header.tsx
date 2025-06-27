@@ -34,14 +34,14 @@ const Header: React.FC<HeaderProps> = ({ currentUser, onUserSwitch }) => {
           </div>
 
           {/* Service Area Indicator */}
-          <div className="flex items-center space-x-2 px-2 lg:px-3 py-2 bg-blue-50 rounded-lg">
+          <div className=" flex items-center space-x-2 px-2 lg:px-3 py-2 bg-blue-50 rounded-lg">
             <MapPin className="text-blue-600" size={16} />
             <span className="text-xs lg:text-sm font-medium text-blue-800 hidden sm:inline">Memphis Metro</span>
-            <span className="text-xs lg:text-sm font-medium text-blue-800 sm:hidden">901</span>
           </div>
         </div>
 
         <div className="flex items-center space-x-2 lg:space-x-4">
+
           {/* Mobile Search Button */}
           <button className="md:hidden p-2 text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-lg">
             <Search size={20} />

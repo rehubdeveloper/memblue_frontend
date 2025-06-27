@@ -65,7 +65,7 @@ const Sidebar: React.FC<SidebarProps> = ({ currentUser, activeTab, onTabChange }
       {/* Mobile Menu Button */}
       <button
         onClick={() => setIsMobileMenuOpen(true)}
-        className="lg:hidden fixed top-4 left-4 z-50 p-2 bg-slate-900 text-white rounded-lg shadow-lg"
+        className="lg:hidden fixed top-4 left-4 z-50 p-2 bg-cyan-700 text-white rounded-lg shadow-lg"
       >
         <Menu size={24} />
       </button>

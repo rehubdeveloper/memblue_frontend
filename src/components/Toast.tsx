@@ -27,7 +27,7 @@ const Toast: React.FC<ToastProps> = ({ message, type = 'info', onClose }) => {
 
     return (
         <div
-            className={`fixed top-8 right-8 z-50 flex items-center max-w-sm border-2 text-white text-base font-semibold px-6 py-4 rounded-2xl shadow-xl backdrop-blur-md transition-transform transform animate-slideIn ${typeStyles[type]}`}
+            className={`fixed top-8 right-8 z-100 flex items-center max-w-sm border-2 text-white text-base font-semibold px-6 py-4 rounded-2xl shadow-xl backdrop-blur-md transition-transform transform animate-slideIn ${typeStyles[type]}`}
         >
             {IconMap[type]}
             <span className="flex-1">{message}</span>
