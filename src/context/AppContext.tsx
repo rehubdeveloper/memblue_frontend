@@ -14,6 +14,13 @@ interface User {
   business_type: string;
 }
 
+interface Toast {
+  id: number;
+  message: string;
+  type: 'success' | 'error' | 'info';
+}
+
+
 interface InventoryItem {
   id: number;
   name: string;
@@ -39,6 +46,13 @@ interface AuthContextType {
   refetchProfile: () => Promise<void>;
   refetchInventory: () => Promise<void>;
   inventoryList: InventoryItem[] | null;
+  setToastMessage: React.Dispatch<React.SetStateAction<string | null>>;
+  toastMessage: string | null;
+  setToastType: React.Dispatch<React.SetStateAction<string>>;
+  toastType: string;
+  addToast: (message: string, type: Toast['type']) => void;
+  toastQueue: Toast[];
+  removeToast: (id: number) => void;
 }
 
 export const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -47,6 +61,19 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [inventoryList, setInventoryList] = useState<InventoryItem[] | null>(null);
+  const [toastMessage, setToastMessage] = useState<string | null>("")
+  const [toastType, setToastType] = useState<string>("")
+
+  const [toastQueue, setToastQueue] = useState<Toast[]>([]);
+
+  const addToast = (message: string, type: Toast['type']) => {
+    const id = Date.now();
+    setToastQueue(prev => [...prev, { id, message, type }]);
+  };
+
+  const removeToast = (id: number) => {
+    setToastQueue(prev => prev.filter(toast => toast.id !== id));
+  };
 
   // Helper function to get token consistently
   const getToken = (): string | null => {
@@ -77,9 +104,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
       const data = await response.json();
       console.log("Profile Fetched!");
+
       setUser(data);
     } catch (error) {
       console.error("Error fetching user profile:", error);
+      setToastMessage(error instanceof Error ? error.message : String(error));
+      setToastType('error')
       setUser(null);
     } finally {
       setIsLoading(false);
@@ -115,11 +145,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
       // Refresh inventory list after creation
       await getInventory();
-
+      setToastMessage('Inventories Fetched!')
+      setToastType('success')
       return data;
 
     } catch (error) {
       console.error('createInventory error:', error);
+      setToastMessage(`Couldn't Get Inventories: ${error}`)
+      setToastType('error')
       throw error; // Re-throw so the component can handle it
     }
   };
@@ -144,6 +177,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
       const data = await response.json();
       console.log("Inventory updated:", data.name);
+      setToastMessage(`${data.name} Inventory Updated!`)
+      setToastType('success')
 
       // Refresh inventory list after update
       await getInventory();
@@ -152,6 +187,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
     } catch (error) {
       console.error('updateInventory error:', error);
+      setToastMessage(`Couldn't Update Inventory: ${error}`)
+      setToastType('error')
       throw error;
     }
   };
@@ -174,6 +211,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       }
 
       console.log("Inventory deleted:", id);
+      setToastMessage(`Inventory Of ID ${id} Has Been Deleted!`)
+      setToastType('error')
 
       // Refresh inventory list after deletion
       await getInventory();
@@ -182,6 +221,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
     } catch (error) {
       console.error('deleteInventory error:', error);
+      setToastMessage(`Couldn't Delete Inventory: ${error}`)
+      setToastType('error')
       throw error;
     }
   };
@@ -206,11 +247,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       const data = await response.json();
       setInventoryList(data);
       console.log("Inventories fetched:", data && Array.isArray(data) ? data.length : 0);
-
       return data;
 
     } catch (error) {
       console.error('getInventory error:', error);
+      setToastMessage(`Error Fetching Inventories: ${error}`)
+      setToastType('error')
       setInventoryList(null);
       return null;
     }
@@ -237,7 +279,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       updateInventory,
       deleteInventory,
       refetchInventory,
-      inventoryList
+      inventoryList,
+      setToastMessage,
+      toastMessage,
+      setToastType,
+      toastType,
+      addToast,
+      toastQueue,
+      removeToast
     }}>
       {children}
     </AuthContext.Provider>

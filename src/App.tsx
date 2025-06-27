@@ -18,6 +18,11 @@ import LandingPage from './components/Landing/LandingPage';
 import { TradeType } from './types';
 import LoginPage from './components/Login/Login';
 import { AuthContext } from './context/AppContext';
+import Toast from './components/Toast';
+
+
+
+
 
 // Loading Spinner Component
 const LoadingSpinner = () => (
@@ -41,6 +46,31 @@ function App() {
   const [businessSetup, setBusinessSetup] = useState(mockBusiness.setupComplete);
   const [showLanding, setShowLanding] = useState(true);
   const [showLogin, setShowLogin] = useState(false);
+
+
+  const auth = useContext(AuthContext);
+  const setToastMessage = auth?.setToastMessage;
+  const setToastType = auth?.setToastType;
+  const toastMessage = auth?.toastMessage;
+  const toastType = auth?.toastType;
+
+
+  const [toast, setToast] = useState(false);
+
+  useEffect(() => {
+    if (toastMessage) {
+      setToast(true);
+      const timer = setTimeout(() => {
+        setToast(false);
+        if (setToastMessage) {
+          setToastMessage(null);
+        }
+      }, 4000);
+
+      return () => clearTimeout(timer);
+    }
+  }, [toastMessage, setToastMessage]);
+
 
   const handleGetStarted = () => {
     setShowLanding(false);
@@ -91,9 +121,14 @@ function App() {
           <h1 className="text-2xl font-bold text-center mb-4">MemBlue Login</h1>
           <p className="text-center text-gray-600">Please log in to continue</p>
         </div>
+
+
       </div>
+
     );
   }
+
+
 
   if (!businessSetup) {
     return (
@@ -110,6 +145,7 @@ function App() {
           setBusinessSetup(true);
         }}
       />
+
     );
   }
 
@@ -214,6 +250,18 @@ function App() {
 
   return (
     <div className="flex h-screen bg-slate-50 overflow-hidden">
+      {toast && toastMessage && (
+        <Toast
+          message={toastMessage}
+          type={toastType as 'success' | 'error' | 'info' | undefined}
+          onClose={() => {
+            setToast(false);
+            if (setToastMessage) {
+              setToastMessage(null);
+            }
+          }}
+        />
+      )}
       <Sidebar
         currentUser={currentUser}
         activeTab={activeTab}

@@ -1,8 +1,9 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Plus, Search, AlertTriangle, Package, TrendingDown, Edit, Wrench, Trash2, X } from 'lucide-react';
 import { mockBusiness } from '../../data/mockData';
 import { tradeConfigs } from '../../data/tradeConfigs';
 import { useAuth } from '../../context/AppContext';
+import Toast from '../Toast';
 
 // Define the inventory item type based on your API response
 interface InventoryItem {
@@ -212,6 +213,8 @@ const InventoryList = () => {
       item.category.toLowerCase().includes('pro');
   };
 
+
+
   return (
     <div className="p-6">
       <div className="flex items-center justify-between mb-6">
@@ -228,6 +231,8 @@ const InventoryList = () => {
           <span>Add Item</span>
         </button>
       </div>
+
+
 
       {/* Create/Edit Dialog */}
       {openDialog && (
