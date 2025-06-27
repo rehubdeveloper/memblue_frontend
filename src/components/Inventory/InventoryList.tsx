@@ -27,7 +27,6 @@ interface InventoryFormData {
   sku: string;
   supplier: string;
   cost_per_unit: string;
-  total_value: string;
   stock_level: string;
   reorder_at: string;
   category: string;
@@ -47,7 +46,6 @@ const InventoryList = () => {
     sku: '',
     supplier: '',
     cost_per_unit: '',
-    total_value: '',
     stock_level: '',
     reorder_at: '',
     category: '',
@@ -82,7 +80,6 @@ const InventoryList = () => {
     const formData = {
       ...form,
       cost_per_unit: parseFloat(form.cost_per_unit) || 0,
-      total_value: parseFloat(form.total_value) || 0,
       stock_level: parseInt(form.stock_level) || 0,
       reorder_at: parseInt(form.reorder_at) || 0,
       ideal_stock: parseInt(form.ideal_stock) || 0,
@@ -98,7 +95,6 @@ const InventoryList = () => {
         sku: '',
         supplier: '',
         cost_per_unit: '',
-        total_value: '',
         stock_level: '',
         reorder_at: '',
         category: '',
@@ -225,18 +221,6 @@ const InventoryList = () => {
                   id="cost_per_unit"
                   value={form.cost_per_unit}
                   onChange={e => handleChange('cost_per_unit', e.target.value)}
-                  className="w-full border border-slate-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
-
-              <div>
-                <label htmlFor="total_value" className="block text-sm font-medium text-slate-700 mb-1">Total Value</label>
-                <input
-                  type="number"
-                  step="0.01"
-                  id="total_value"
-                  value={form.total_value}
-                  onChange={e => handleChange('total_value', e.target.value)}
                   className="w-full border border-slate-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
               </div>
