@@ -54,6 +54,7 @@ interface AuthContextType {
   toastQueue: Toast[];
   removeToast: (id: number) => void;
   createCustomer: (formData: any) => Promise<any>;
+  customers: any; // Add this line to match the provider value
 }
 
 export const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -64,6 +65,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [inventoryList, setInventoryList] = useState<InventoryItem[] | null>(null);
   const [toastMessage, setToastMessage] = useState<string | null>("")
   const [toastType, setToastType] = useState<string>("")
+  const [customers, setCustomers] = useState(null)
 
   const [toastQueue, setToastQueue] = useState<Toast[]>([]);
 
@@ -296,6 +298,37 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
 
+  const getCustomers = async () => {
+    const token = getToken();
+
+    try {
+      const res = await fetch('https://memblue-backend.onrender.com/api/users/customers/', {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Token ${token}`
+        },
+      });
+
+      if (!res.ok) {
+        const errorText = await res.text();
+        throw new Error(`Failed to get customer: ${errorText}`);
+      }
+
+      const data = await res.json();
+      setCustomers(data)
+      console.log(`Customers Fetched successfully`)
+      return data;
+    } catch (error) {
+      console.error('error: ', error)
+      setToastMessage(`${error}: Customer Fetch Failed!`)
+      setToastType('error')
+    }
+  };
+
+
+
+
   const refetchInventory = async (): Promise<void> => {
     await getInventory();
   };
@@ -305,6 +338,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       await fetchUserProfile();
       if (inventoryList == null) {
         await getInventory();
+      }
+      if (customers == null) {
+        await getCustomers();
       }
     };
     initialize();
@@ -327,7 +363,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       addToast,
       toastQueue,
       removeToast,
-      createCustomer
+      createCustomer,
+      customers
     }}>
       {children}
     </AuthContext.Provider>

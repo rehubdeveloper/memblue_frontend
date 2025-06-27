@@ -56,6 +56,7 @@ const CustomersList = () => {
   };
 
   const initialCustomerState: CustomerFormData = {
+    id: '',
     name: '',
     email: '',
     phone: '',
@@ -64,6 +65,8 @@ const CustomersList = () => {
     tags: '',
     notes: '',
     last_contact: '',
+    total_revenue: 0,
+    job_count: 0,
   };
 
   const [formData, setFormData] = useState<CustomerFormData>(initialCustomerState);
@@ -101,6 +104,8 @@ const CustomersList = () => {
       setISaving(false)
     };
 
+    const { customers } = useAuth()
+
     return (
       <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50 p-4">
         <div className="bg-white rounded-xl shadow-lg w-full max-w-2xl max-h-[90vh] overflow-y-auto">
@@ -116,6 +121,8 @@ const CustomersList = () => {
             <select name="property_type" value={formData.property_type} onChange={handleChange} className="w-full border rounded-lg px-4 py-2">
               <option value="residential">Residential</option>
               <option value="commercial">Commercial</option>
+              <option value='hoa'>HOA</option>
+              <option value='rental'>Rental</option>
             </select>
             <input type="text" name="tags" value={formData.tags} onChange={handleChange} placeholder="Tags (comma separated)" className="w-full border rounded-lg px-4 py-2" />
             <textarea name="notes" value={formData.notes} onChange={handleChange} placeholder="Notes" className="w-full border rounded-lg px-4 py-2" rows={3}></textarea>
@@ -130,7 +137,7 @@ const CustomersList = () => {
   };
 
 
-  const { user } = useAuth();
+  const { customers, user } = useAuth();
 
   return (
     <div className="p-6">
@@ -185,27 +192,36 @@ const CustomersList = () => {
 
       {/* Customers Grid */}
       <div className="grid gap-6">
-        {filteredCustomers.map((customer) => (
+        {customers.map((customer: CustomerFormData) => (
           <div key={customer.id} className="bg-white rounded-lg p-6 shadow-sm border border-slate-200 hover:shadow-md transition-shadow">
             <div className="flex items-start justify-between mb-4">
               <div className="flex-1">
                 <div className="flex items-center space-x-3 mb-2">
-                  {getPropertyTypeIcon(customer.propertyType)}
+                  {getPropertyTypeIcon(customer.property_type)}
                   <h3 className="text-xl font-semibold text-slate-900">{customer.name}</h3>
                   <div className="flex space-x-2">
-                    {customer.propertyType && (
-                      <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${getPropertyTypeColor(customer.propertyType)}`}>
-                        {customer.propertyType}
+                    {customer.property_type && (
+                      <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${getPropertyTypeColor(customer.property_type)}`}>
+                        {customer.property_type}
                       </span>
                     )}
-                    {customer.tags.slice(1).map((tag, index) => (
-                      <span
-                        key={index}
-                        className="inline-flex px-2 py-1 text-xs font-medium rounded-full bg-slate-100 text-slate-600"
-                      >
-                        {tag.replace('-', ' ')}
-                      </span>
-                    ))}
+                    {typeof customer.tags === 'string'
+                      ? customer.tags.split(',').map((tag: string, index: number) => (
+                        <span
+                          key={index}
+                          className="inline-flex px-2 py-1 text-xs font-medium rounded-full bg-slate-100 text-slate-600"
+                        >
+                          {tag.trim().replace('-', ' ')}
+                        </span>
+                      ))
+                      : Array.isArray(customer.tags) && customer.tags.map((tag: string, index: number) => (
+                        <span
+                          key={index}
+                          className="inline-flex px-2 py-1 text-xs font-medium rounded-full bg-slate-100 text-slate-600"
+                        >
+                          {tag.replace('-', ' ')}
+                        </span>
+                      ))}
                   </div>
                 </div>
                 {customer.notes && (
@@ -214,7 +230,7 @@ const CustomersList = () => {
               </div>
 
               <div className="text-right">
-                <p className="text-lg font-bold text-green-600">${customer.totalRevenue.toLocaleString()}</p>
+                <p className="text-lg font-bold text-green-600">${customer.total_revenue.toLocaleString()}</p>
                 <p className="text-sm text-slate-500">Total Revenue</p>
               </div>
             </div>
@@ -241,7 +257,7 @@ const CustomersList = () => {
               <div className="flex items-center space-x-2">
                 <Calendar className="text-slate-400" size={16} />
                 <span className="text-sm text-slate-900">
-                  Last contact: {customer.lastContact.toLocaleDateString()}
+                  Last contact: {customer.last_contact ? new Date(customer.last_contact).toLocaleDateString() : ''}
                 </span>
               </div>
             </div>
@@ -249,13 +265,13 @@ const CustomersList = () => {
             <div className="flex items-center justify-between pt-4 border-t border-slate-200">
               <div className="flex items-center space-x-6">
                 <div>
-                  <p className="text-lg font-semibold text-slate-900">{customer.jobCount}</p>
+                  <p className="text-lg font-semibold text-slate-900">{customer.job_count}</p>
                   <p className="text-sm text-slate-600">{tradeConfig.name} Jobs</p>
                 </div>
 
                 <div>
                   <p className="text-lg font-semibold text-slate-900">
-                    ${(customer.totalRevenue / customer.jobCount).toFixed(0)}
+                    ${(customer.total_revenue / customer.job_count).toFixed(0)}
                   </p>
                   <p className="text-sm text-slate-600">Avg Job Value</p>
                 </div>

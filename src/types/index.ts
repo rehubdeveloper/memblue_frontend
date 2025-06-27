@@ -25,14 +25,17 @@ export interface Business {
 
 // types/customer.ts
 export interface CustomerFormData {
+  id: any;
   name: string;
   email: string;
   phone: string;
   address: string;
-  property_type: 'residential' | 'commercial';
-  tags: string;
+  property_type: 'residential' | 'commercial' | "rental" | "hoa";
+  tags: string | string[];
   notes: string;
   last_contact: string;
+  total_revenue: number;
+  job_count: number;
 }
 
 
