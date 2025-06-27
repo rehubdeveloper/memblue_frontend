@@ -17,7 +17,9 @@ interface User {
 interface AuthContextType {
     user: User | null;
     isLoading: boolean;
+    createInventory: (form: any) => Promise<any>;
     refetchProfile: () => Promise<void>;
+    inventoryList: any; // Add this line to match the provider value
 }
 
 export const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -25,6 +27,7 @@ export const AuthContext = createContext<AuthContextType | undefined>(undefined)
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
     const [user, setUser] = useState<User | null>(null);
     const [isLoading, setIsLoading] = useState<boolean>(true);
+    const [inventoryList, setInventoryList] = useState(null)
 
     const fetchUserProfile = async (): Promise<void> => {
         const token = localStorage.getItem("token");
@@ -60,12 +63,80 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         }
     };
 
+    const createInventory = async (form: any) => {
+        const token = localStorage.getItem('token');
+
+        try {
+            const response = await fetch("https://memblue-backend.onrender.com/api/users/inventory/", {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Token ${token}`
+                },
+                body: JSON.stringify(form)
+            });
+
+            if (!response.ok) {
+                const errorDetails = await response.text(); // Capture error details from backend
+                throw new Error(`Error creating inventory: ${errorDetails}`);
+            }
+
+            const data = await response.json();
+            console.log("Inventory created:", data.name);
+
+            return data;
+
+        } catch (error) {
+            console.error('createInventory error:', error);
+            return null; // Return null or throw depending on how you handle it in UI
+        } finally {
+            console.log('createInventory finished.');
+        }
+    };
+
+
+    const getInventory = async () => {
+        const token = localStorage.getItem('token');
+
+        try {
+            const response = await fetch("https://memblue-backend.onrender.com/api/users/inventory/", {
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Token ${token}`
+                },
+            });
+
+            if (!response.ok) {
+                const errorDetails = await response.text(); // Capture error details from backend
+                throw new Error(`Error creating inventory: ${errorDetails}`);
+            }
+
+            const data = await response.json();
+            setInventoryList(data)
+            console.log("Inventory fetched:", inventoryList);
+
+            return data;
+
+        } catch (error) {
+            console.error('getInventory error:', error);
+            return null; // Return null or throw depending on how you handle it in UI
+        } finally {
+            console.log('getInventory finished.');
+        }
+    };
+
+
     useEffect(() => {
-        fetchUserProfile();
+        const getfacts = async () => {
+            await fetchUserProfile();
+            await getInventory();
+        }
+        getfacts();
     }, []);
 
     return (
-        <AuthContext.Provider value={{ user, isLoading, refetchProfile: fetchUserProfile }}>
+        <AuthContext.Provider value={{ user, isLoading, refetchProfile: fetchUserProfile, createInventory, inventoryList }}>
             {children}
         </AuthContext.Provider>
     );
