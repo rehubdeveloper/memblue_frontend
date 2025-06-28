@@ -19,6 +19,7 @@ import { TradeType } from './types';
 import LoginPage from './components/Login/Login';
 import { AuthContext } from './context/AppContext';
 import Toast from './components/Toast';
+import Team from './components/Team/Team';
 
 
 
@@ -212,6 +213,8 @@ function App() {
         return <InventoryList />;
       case 'reports':
         return <ReportsView />;
+      case 'team':
+        return <Team />
       case 'mobile-dashboard':
         return <MobileDashboard currentUserId={currentUser.id} />;
       case 'settings':

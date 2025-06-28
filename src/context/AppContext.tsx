@@ -1,4 +1,4 @@
-// src/context/AuthContext.tsx
+// src/context/AuthContext.tsx (Updated with team functions)
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import Cookies from 'js-cookie';
 import { CustomerFormData } from '../types';
@@ -37,6 +37,27 @@ interface InventoryItem {
   owner_code: string;
 }
 
+interface TeamMember {
+  id: number;
+  name: string;
+  email: string;
+  phone: string;
+  position: string;
+  username: string;
+  can_create_jobs: boolean;
+  date_joined: string;
+  is_active: boolean;
+}
+
+interface TeamInviteData {
+  name: string;
+  email: string;
+  phone: string;
+  position: string;
+  username: string;
+  password: string;
+}
+
 interface AuthContextType {
   user: User | null;
   isLoading: boolean;
@@ -57,6 +78,10 @@ interface AuthContextType {
   updateCustomer: (id: number, data: Partial<CustomerFormData>) => Promise<any>;
   deleteCustomer: (id: number) => Promise<boolean>;
   customers: CustomerFormData[] | null;
+  // Team functions
+  sendTeamInvite: () => Promise<string>;
+  teamMembers: TeamMember[] | null;
+  getTeamMembers: () => Promise<void>;
 }
 
 export const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -68,6 +93,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [toastMessage, setToastMessage] = useState<string | null>("")
   const [toastType, setToastType] = useState<string>("")
   const [customers, setCustomers] = useState<CustomerFormData[] | null>(null)
+  const [teamMembers, setTeamMembers] = useState<TeamMember[] | null>(null);
 
   const [toastQueue, setToastQueue] = useState<Toast[]>([]);
 
@@ -118,6 +144,82 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       setUser(null);
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  // Team Functions
+  const sendTeamInvite = async (): Promise<string> => {
+    const token = getToken();
+
+    if (!token) {
+      throw new Error('No authentication token found');
+    }
+
+    try {
+      const response = await fetch('https://memblue-backend.onrender.com/api/users/team/invite/', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Token ${token}`
+        },
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Failed to send invite: ${errorText}`);
+      }
+
+      const data = await response.json();
+
+      // Extract the UUID from the returned link
+
+      const uuid = data.token
+
+      // Create the onboarding URL using window.location.origin
+      const onboardingUrl = `${window.location.origin}/onboard/${uuid}`;
+
+      setToastMessage(`Team invite sent successfully!`);
+      setToastType('success')
+
+      return onboardingUrl;
+
+    } catch (error) {
+      console.error('Error sending team invite:', error);
+      addToast(`Error sending invite: ${error instanceof Error ? error.message : 'Unknown error'}`, 'error');
+      throw error;
+    }
+  };
+
+  const getTeamMembers = async (): Promise<void> => {
+    const token = getToken();
+
+    if (!token) {
+      console.error('No authentication token found');
+      return;
+    }
+
+    try {
+      const response = await fetch('https://memblue-backend.onrender.com/api/team/members/', {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Token ${token}`
+        },
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Failed to fetch team members: ${errorText}`);
+      }
+
+      const data = await response.json();
+      setTeamMembers(data);
+      console.log("Team members fetched:", data && Array.isArray(data) ? data.length : 0);
+
+    } catch (error) {
+      console.error('Error fetching team members:', error);
+      addToast(`Error fetching team members: ${error instanceof Error ? error.message : 'Unknown error'}`, 'error');
+      setTeamMembers(null);
     }
   };
 
@@ -413,6 +515,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       if (customers == null) {
         await getCustomers();
       }
+      if (teamMembers == null) {
+        await getTeamMembers();
+      }
     };
     initialize();
   }, []);
@@ -437,7 +542,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       createCustomer,
       updateCustomer,
       deleteCustomer,
-      customers
+      customers,
+      // Team functions
+      sendTeamInvite,
+      teamMembers,
+      getTeamMembers
     }}>
       {children}
     </AuthContext.Provider>

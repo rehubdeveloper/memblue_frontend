@@ -11,7 +11,8 @@ import {
   Smartphone,
   Wrench,
   Menu,
-  X
+  X,
+  UsersRound
 } from 'lucide-react';
 import { User } from '../../types';
 import { tradeConfigs } from '../../data/tradeConfigs';
@@ -36,6 +37,7 @@ const Sidebar: React.FC<SidebarProps> = ({ currentUser, activeTab, onTabChange }
     { id: 'estimates', label: 'Estimates', icon: FileText },
     { id: 'inventory', label: 'Inventory', icon: Package },
     { id: 'reports', label: 'Reports', icon: BarChart3 },
+    { id: 'team', label: 'Team', icon: UsersRound },
     { id: 'settings', label: 'Settings', icon: Settings }
   ];
 
