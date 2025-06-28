@@ -1,4 +1,5 @@
 import React, { useContext, useEffect, useState } from 'react';
+import { Routes, Route, BrowserRouter } from 'react-router-dom';
 import { useAuth } from './hooks/useAuth';
 import { mockBusiness } from './data/mockData';
 import TradeSelection from './components/Setup/TradeSelection';
@@ -20,10 +21,7 @@ import LoginPage from './components/Login/Login';
 import { AuthContext } from './context/AppContext';
 import Toast from './components/Toast';
 import Team from './components/Team/Team';
-
-
-
-
+import OnboardPage from './components/TeamOnboarding/Onboarding';
 
 // Loading Spinner Component
 const LoadingSpinner = () => (
@@ -35,10 +33,11 @@ const LoadingSpinner = () => (
   </div>
 );
 
-function App() {
+// Main App Layout Component
+const AppLayout = () => {
   const authContext = useContext(AuthContext);
   const isLoading = authContext?.isLoading ?? false;
-  const { currentUser, isAuthenticated, switchUser, } = useAuth();
+  const { currentUser, isAuthenticated, switchUser } = useAuth();
   const [activeTab, setActiveTab] = useState(
     currentUser?.role === 'technician' ? 'mobile-dashboard' : 'dashboard'
   );
@@ -48,13 +47,11 @@ function App() {
   const [showLanding, setShowLanding] = useState(true);
   const [showLogin, setShowLogin] = useState(false);
 
-
   const auth = useContext(AuthContext);
   const setToastMessage = auth?.setToastMessage;
   const setToastType = auth?.setToastType;
   const toastMessage = auth?.toastMessage;
   const toastType = auth?.toastType;
-
 
   const [toast, setToast] = useState(false);
 
@@ -72,7 +69,6 @@ function App() {
     }
   }, [toastMessage, setToastMessage]);
 
-
   const handleGetStarted = () => {
     setShowLanding(false);
   };
@@ -80,34 +76,40 @@ function App() {
   const handleLogin = () => {
     setShowLogin(true);
   };
+
   const getToken = () => {
-    const token = localStorage.getItem("token")
-    return token
-  }
-  const [token, setToken] = useState<string | null>(null)
+    const token = localStorage.getItem("token");
+    return token;
+  };
+
+  const [token, setToken] = useState<string | null>(null);
+
   useEffect(() => {
     const newtoken = getToken();
-    setToken(newtoken)
+    setToken(newtoken);
   }, []);
+
   // Show loading spinner while fetching user profile
-  if (isLoading && !token == null) {
+  if (isLoading && token !== null) {
     return <LoadingSpinner />;
   }
 
   if (showLogin) {
-    return <LoginPage
-      completeLogin={() => {
-        alert('Login Successful!')
-        setShowLogin(false);
-        setShowLanding(false);
-        setBusinessSetup(true);
-      }}
-      signUp={() => {
-        setShowLogin(false);
-        setBusinessSetup(false);
-        setShowLanding(false);
-      }}
-    />
+    return (
+      <LoginPage
+        completeLogin={() => {
+          alert('Login Successful!');
+          setShowLogin(false);
+          setShowLanding(false);
+          setBusinessSetup(true);
+        }}
+        signUp={() => {
+          setShowLogin(false);
+          setBusinessSetup(false);
+          setShowLanding(false);
+        }}
+      />
+    );
   }
 
   // Show landing page by default
@@ -122,21 +124,16 @@ function App() {
           <h1 className="text-2xl font-bold text-center mb-4">MemBlue Login</h1>
           <p className="text-center text-gray-600">Please log in to continue</p>
         </div>
-
-
       </div>
-
     );
   }
-
-
 
   if (!businessSetup) {
     return (
       <TradeSelection
         onComplete={(userData) => {
           if (userData !== null) {
-            alert('Registration Successful, Welcome To Memblue!')
+            alert('Registration Successful, Welcome To Memblue!');
             setShowLanding(true);
             setBusinessSetup(false);
           }
@@ -146,7 +143,6 @@ function App() {
           setBusinessSetup(true);
         }}
       />
-
     );
   }
 
@@ -214,7 +210,7 @@ function App() {
       case 'reports':
         return <ReportsView />;
       case 'team':
-        return <Team />
+        return <Team />;
       case 'mobile-dashboard':
         return <MobileDashboard currentUserId={currentUser.id} />;
       case 'settings':
@@ -282,6 +278,20 @@ function App() {
         </main>
       </div>
     </div>
+  );
+};
+
+function App() {
+  return (
+    <BrowserRouter>
+      <Routes>
+        {/* Onboarding route - this should be FIRST and standalone */}
+        <Route path="/onboard/:inviteToken" element={<OnboardPage />} />
+
+        {/* All other routes go through the main layout */}
+        <Route path="/*" element={<AppLayout />} />
+      </Routes>
+    </BrowserRouter>
   );
 }
 

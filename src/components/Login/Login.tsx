@@ -18,9 +18,9 @@ const LoginPage: React.FC<LoginPageProps> = ({ completeLogin, signUp }) => {
         e.preventDefault();
         setLoading(true);
         setErrorMsg('');
-
+        const base_url = import.meta.env.VITE_BASE_URL;
         try {
-            const response = await fetch('https://memblue-backend.onrender.com/api/users/login/', {
+            const response = await fetch(`${base_url}/login/`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',

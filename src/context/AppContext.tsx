@@ -121,7 +121,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
 
     try {
-      const response = await fetch("https://memblue-backend.onrender.com/api/users/profile/", {
+      const response = await fetch(`${import.meta.env.VITE_BASE_URL}/profile/`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
@@ -156,7 +156,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
 
     try {
-      const response = await fetch('https://memblue-backend.onrender.com/api/users/team/invite/', {
+      const response = await fetch(`${import.meta.env.VITE_BASE_URL}/team/invite/`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -233,7 +233,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         owner: user?.id // Assuming user.id is the owner ID
       };
 
-      const response = await fetch("https://memblue-backend.onrender.com/api/users/inventory/", {
+      const response = await fetch(`${import.meta.env.VITE_BASE_URL}/inventory/`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -268,7 +268,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     const token = getToken();
 
     try {
-      const response = await fetch(`https://memblue-backend.onrender.com/api/users/inventory/${id}/`, {
+      const response = await fetch(`${import.meta.env.VITE_BASE_URL}/inventory/${id}/`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
@@ -304,7 +304,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     const token = getToken();
 
     try {
-      const response = await fetch(`https://memblue-backend.onrender.com/api/users/inventory/${id}/`, {
+      const response = await fetch(`${import.meta.env.VITE_BASE_URL}/inventory/${id}/`, {
         method: 'DELETE',
         headers: {
           'Content-Type': 'application/json',
@@ -338,7 +338,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     const token = getToken();
 
     try {
-      const response = await fetch("https://memblue-backend.onrender.com/api/users/inventory/", {
+      const response = await fetch(`${import.meta.env.VITE_BASE_URL}/inventory/`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
@@ -375,7 +375,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     };
 
     try {
-      const res = await fetch('https://memblue-backend.onrender.com/api/users/customers/', {
+      const res = await fetch(`${import.meta.env.VITE_BASE_URL}/customers/`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -410,7 +410,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     const token = getToken();
 
     try {
-      const res = await fetch(`https://memblue-backend.onrender.com/api/users/customers/${id}/`, {
+      const res = await fetch(`${import.meta.env.VITE_BASE_URL}/customers/${id}/`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
@@ -445,7 +445,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     const token = getToken();
 
     try {
-      const res = await fetch(`https://memblue-backend.onrender.com/api/users/customers/${id}/`, {
+      const res = await fetch(`${import.meta.env.VITE_BASE_URL}/customers/${id}/`, {
         method: 'DELETE',
         headers: {
           'Content-Type': 'application/json',
@@ -478,7 +478,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     const token = getToken();
 
     try {
-      const res = await fetch('https://memblue-backend.onrender.com/api/users/customers/', {
+      const res = await fetch(`${import.meta.env.VITE_BASE_URL}/customers/`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
