@@ -1,6 +1,7 @@
 // src/context/AuthContext.tsx
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import Cookies from 'js-cookie';
+import { CustomerFormData } from '../types';
 
 interface User {
   id: number;
@@ -19,7 +20,6 @@ interface Toast {
   message: string;
   type: 'success' | 'error' | 'info';
 }
-
 
 interface InventoryItem {
   id: number;
@@ -41,7 +41,7 @@ interface AuthContextType {
   user: User | null;
   isLoading: boolean;
   createInventory: (form: any) => Promise<any>;
-  updateInventory: (id: number, form: any) => Promise<any>;
+  updateInventory: (id: number, form: Partial<CustomerFormData>) => Promise<any>;
   deleteInventory: (id: number) => Promise<boolean>;
   refetchProfile: () => Promise<void>;
   refetchInventory: () => Promise<void>;
@@ -54,7 +54,9 @@ interface AuthContextType {
   toastQueue: Toast[];
   removeToast: (id: number) => void;
   createCustomer: (formData: any) => Promise<any>;
-  customers: any; // Add this line to match the provider value
+  updateCustomer: (id: number, data: Partial<CustomerFormData>) => Promise<any>;
+  deleteCustomer: (id: number) => Promise<boolean>;
+  customers: CustomerFormData[] | null;
 }
 
 export const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -65,7 +67,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [inventoryList, setInventoryList] = useState<InventoryItem[] | null>(null);
   const [toastMessage, setToastMessage] = useState<string | null>("")
   const [toastType, setToastType] = useState<string>("")
-  const [customers, setCustomers] = useState(null)
+  const [customers, setCustomers] = useState<CustomerFormData[] | null>(null)
 
   const [toastQueue, setToastQueue] = useState<Toast[]>([]);
 
@@ -160,7 +162,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  const updateInventory = async (id: number, form: any) => {
+  const updateInventory = async (id: number, form: Partial<CustomerFormData>) => {
     const token = getToken();
 
     try {
@@ -289,14 +291,86 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       console.log(`Customer "${data.name}" created successfully`)
       setToastMessage(`Customer "${data.name}" created successfully`);
       setToastType('success')
+
+      // Refresh customers list after creation
+      await getCustomers();
+
       return data;
     } catch (error) {
       console.error('error: ', error)
       setToastMessage(`${error}: Customer Creation Failed!`)
       setToastType('error')
+      throw error;
     }
   };
 
+  const updateCustomer = async (id: number, data: Partial<CustomerFormData>) => {
+    const token = getToken();
+
+    try {
+      const res = await fetch(`https://memblue-backend.onrender.com/api/users/customers/${id}/`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Token ${token}`
+        },
+        body: JSON.stringify(data)
+      });
+
+      if (!res.ok) {
+        const errorText = await res.text();
+        throw new Error(`Failed to update customer: ${errorText}`);
+      }
+
+      const updatedCustomer = await res.json();
+      console.log(`Customer "${updatedCustomer.name}" updated successfully`)
+      setToastMessage(`Customer "${updatedCustomer.name}" updated successfully`);
+      setToastType('success')
+
+      // Refresh customers list after update
+      await getCustomers();
+
+      return updatedCustomer;
+    } catch (error) {
+      console.error('error: ', error)
+      setToastMessage(`${error}: Customer Update Failed!`)
+      setToastType('error')
+      throw error;
+    }
+  };
+
+  const deleteCustomer = async (id: number): Promise<boolean> => {
+    const token = getToken();
+
+    try {
+      const res = await fetch(`https://memblue-backend.onrender.com/api/users/customers/${id}/`, {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Token ${token}`
+        }
+      });
+
+      if (!res.ok) {
+        const errorText = await res.text();
+        throw new Error(`Failed to delete customer: ${errorText}`);
+      }
+
+      console.log(`Customer with ID ${id} deleted successfully`)
+      setToastMessage(`Customer deleted successfully`);
+      setToastType('success')
+
+      // Refresh customers list after deletion
+      await getCustomers();
+
+      return true;
+    } catch (error) {
+      console.error('error: ', error)
+      setToastMessage(`${error}: Customer Deletion Failed!`)
+      setToastType('error')
+      return false;
+    }
+  };
 
   const getCustomers = async () => {
     const token = getToken();
@@ -325,9 +399,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       setToastType('error')
     }
   };
-
-
-
 
   const refetchInventory = async (): Promise<void> => {
     await getInventory();
@@ -364,6 +435,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       toastQueue,
       removeToast,
       createCustomer,
+      updateCustomer,
+      deleteCustomer,
       customers
     }}>
       {children}
