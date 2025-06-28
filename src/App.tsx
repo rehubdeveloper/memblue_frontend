@@ -261,11 +261,14 @@ const AppLayout = () => {
           }}
         />
       )}
+
+
       <Sidebar
         currentUser={currentUser}
         activeTab={activeTab}
         onTabChange={setActiveTab}
       />
+
 
       <div className="flex-1 flex flex-col overflow-hidden lg:ml-0">
         <Header
@@ -288,8 +291,23 @@ function App() {
         {/* Onboarding route - this should be FIRST and standalone */}
         <Route path="/onboard/:inviteToken" element={<OnboardPage />} />
 
-        {/* All other routes go through the main layout */}
-        <Route path="/*" element={<AppLayout />} />
+        {/* Login route */}
+        <Route path="/login" element={<AppLayout />} />
+
+        {/* Home/Dashboard routes */}
+        <Route path="/" element={<AppLayout />} />
+        <Route path="/dashboard" element={<AppLayout />} />
+        <Route path="/schedule" element={<AppLayout />} />
+        <Route path="/jobs" element={<AppLayout />} />
+        <Route path="/customers" element={<AppLayout />} />
+        <Route path="/estimates" element={<AppLayout />} />
+        <Route path="/inventory" element={<AppLayout />} />
+        <Route path="/reports" element={<AppLayout />} />
+        <Route path="/team" element={<AppLayout />} />
+        <Route path="/settings" element={<AppLayout />} />
+
+        {/* Catch all route */}
+        <Route path="*" element={<AppLayout />} />
       </Routes>
     </BrowserRouter>
   );
