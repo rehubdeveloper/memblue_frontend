@@ -11,7 +11,12 @@ interface OnboardFormData {
     password: string;
 }
 
-const OnboardPage: React.FC = () => {
+type OnboardPageProps = {
+    setShowLogin: React.Dispatch<React.SetStateAction<boolean>>;
+};
+
+
+const OnboardPage: React.FC<OnboardPageProps> = ({ setShowLogin }) => {
     const { inviteToken } = useParams<{ inviteToken: string }>();
     const navigate = useNavigate();
     const [isLoading, setIsLoading] = useState(false);
@@ -80,8 +85,9 @@ const OnboardPage: React.FC = () => {
 
             // Redirect to login page after 3 seconds
             setTimeout(() => {
-                navigate('/login');
-            }, 3000);
+                setShowLogin(true)
+                navigate('/');
+            }, 2000);
 
         } catch (error) {
             console.error('Error during onboarding:', error);

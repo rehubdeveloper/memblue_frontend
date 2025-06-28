@@ -34,7 +34,12 @@ const LoadingSpinner = () => (
 );
 
 // Main App Layout Component
-const AppLayout = () => {
+type AppLayoutProps = {
+  showLogin: boolean;
+  setShowLogin: React.Dispatch<React.SetStateAction<boolean>>;
+};
+
+const AppLayout: React.FC<AppLayoutProps> = ({ showLogin, setShowLogin }) => {
   const authContext = useContext(AuthContext);
   const isLoading = authContext?.isLoading ?? false;
   const { currentUser, isAuthenticated, switchUser } = useAuth();
@@ -45,7 +50,6 @@ const AppLayout = () => {
   const [showEstimateForm, setShowEstimateForm] = useState(false);
   const [businessSetup, setBusinessSetup] = useState(mockBusiness.setupComplete);
   const [showLanding, setShowLanding] = useState(true);
-  const [showLogin, setShowLogin] = useState(false);
 
   const auth = useContext(AuthContext);
   const setToastMessage = auth?.setToastMessage;
@@ -285,29 +289,31 @@ const AppLayout = () => {
 };
 
 function App() {
+  const [showLogin, setShowLogin] = useState(false);
+
   return (
     <BrowserRouter>
       <Routes>
         {/* Onboarding route - this should be FIRST and standalone */}
-        <Route path="/onboard/:inviteToken" element={<OnboardPage />} />
+        <Route path="/onboard/:inviteToken" element={<OnboardPage setShowLogin={setShowLogin} />} />
 
         {/* Login route */}
-        <Route path="/login" element={<AppLayout />} />
+        <Route path="/login" element={<AppLayout showLogin={showLogin} setShowLogin={setShowLogin} />} />
 
         {/* Home/Dashboard routes */}
-        <Route path="/" element={<AppLayout />} />
-        <Route path="/dashboard" element={<AppLayout />} />
-        <Route path="/schedule" element={<AppLayout />} />
-        <Route path="/jobs" element={<AppLayout />} />
-        <Route path="/customers" element={<AppLayout />} />
-        <Route path="/estimates" element={<AppLayout />} />
-        <Route path="/inventory" element={<AppLayout />} />
-        <Route path="/reports" element={<AppLayout />} />
-        <Route path="/team" element={<AppLayout />} />
-        <Route path="/settings" element={<AppLayout />} />
+        <Route path="/" element={<AppLayout showLogin={showLogin} setShowLogin={setShowLogin} />} />
+        <Route path="/dashboard" element={<AppLayout showLogin={showLogin} setShowLogin={setShowLogin} />} />
+        <Route path="/schedule" element={<AppLayout showLogin={showLogin} setShowLogin={setShowLogin} />} />
+        <Route path="/jobs" element={<AppLayout showLogin={showLogin} setShowLogin={setShowLogin} />} />
+        <Route path="/customers" element={<AppLayout showLogin={showLogin} setShowLogin={setShowLogin} />} />
+        <Route path="/estimates" element={<AppLayout showLogin={showLogin} setShowLogin={setShowLogin} />} />
+        <Route path="/inventory" element={<AppLayout showLogin={showLogin} setShowLogin={setShowLogin} />} />
+        <Route path="/reports" element={<AppLayout showLogin={showLogin} setShowLogin={setShowLogin} />} />
+        <Route path="/team" element={<AppLayout showLogin={showLogin} setShowLogin={setShowLogin} />} />
+        <Route path="/settings" element={<AppLayout showLogin={showLogin} setShowLogin={setShowLogin} />} />
 
         {/* Catch all route */}
-        <Route path="*" element={<AppLayout />} />
+        <Route path="*" element={<AppLayout showLogin={showLogin} setShowLogin={setShowLogin} />} />
       </Routes>
     </BrowserRouter>
   );
