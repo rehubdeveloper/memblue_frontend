@@ -47,16 +47,10 @@ interface TeamMember {
   can_create_jobs: boolean;
   date_joined: string;
   is_active: boolean;
+  role: string
 }
 
-interface TeamInviteData {
-  name: string;
-  email: string;
-  phone: string;
-  position: string;
-  username: string;
-  password: string;
-}
+
 
 interface AuthContextType {
   user: User | null;
@@ -199,7 +193,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
 
     try {
-      const response = await fetch('https://memblue-backend.onrender.com/api/team/members/', {
+      const response = await fetch(`${import.meta.env.VITE_BASE_URL}/team/members/`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',

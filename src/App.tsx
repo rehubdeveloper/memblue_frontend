@@ -22,6 +22,7 @@ import { AuthContext } from './context/AppContext';
 import Toast from './components/Toast';
 import Team from './components/Team/Team';
 import OnboardPage from './components/TeamOnboarding/Onboarding';
+import TeamInvite from './components/Team/Team';
 
 // Loading Spinner Component
 const LoadingSpinner = () => (
@@ -214,7 +215,7 @@ const AppLayout: React.FC<AppLayoutProps> = ({ showLogin, setShowLogin }) => {
       case 'reports':
         return <ReportsView />;
       case 'team':
-        return <Team />;
+        return <TeamInvite />;
       case 'mobile-dashboard':
         return <MobileDashboard currentUserId={currentUser.id} />;
       case 'settings':
