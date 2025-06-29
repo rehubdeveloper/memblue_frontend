@@ -6,14 +6,20 @@ import { useState } from "react"
 import { Plus, Copy, Check, Users, LinkIcon, X } from "lucide-react"
 import { useAuth } from "../../context/AppContext"
 
-interface TeamMember {
-    id: string
-    name: string
-    email: string
+interface TeamMemberData {
+    id: number
+    user_code: string
     username: string
-    phone: string
-    position: string
+    email: string
+    first_name: string
+    last_name: string
+    phone_number: string
+    primary_trade: string
+    secondary_trades: string[]
+    business_type: string
     role: string
+    can_create_jobs: boolean
+    team: number
 }
 
 interface InviteLink {
@@ -27,7 +33,7 @@ const TeamInvite: React.FC = () => {
     const [loading, setLoading] = useState<boolean>(false)
     const [copied, setCopied] = useState<boolean>(false)
 
-    const { sendTeamInvite, teamMembers } = useAuth()
+    const { sendTeamInvite, teamMembers }: { sendTeamInvite: () => Promise<string>; teamMembers: TeamMemberData[] } = useAuth()
 
     const createInviteLink = async (): Promise<void> => {
         setLoading(true)
@@ -86,22 +92,41 @@ const TeamInvite: React.FC = () => {
     }
 
     // Helper function to generate initials safely
-    const getInitials = (name: string | undefined | null): string => {
-        if (!name || typeof name !== 'string') {
-            return "?"
-        }
-
-        return name
-            .split(" ")
-            .map((n) => n[0])
-            .join("")
-            .toUpperCase()
-            .slice(0, 2) // Limit to 2 characters
+    const getInitials = (firstName: string, lastName: string): string => {
+        const first = firstName?.charAt(0)?.toUpperCase() || ""
+        const last = lastName?.charAt(0)?.toUpperCase() || ""
+        return first + last || "?"
     }
 
-    // Helper function to safely get member property
-    const getMemberProperty = (member: any, property: string): string => {
-        return member?.[property] || "N/A"
+    // Helper function to format trade names
+    const formatTradeName = (trade: string): string => {
+        return trade.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())
+    }
+
+    // Helper function to get full name
+    const getFullName = (member: TeamMemberData): string => {
+        return `${member.first_name || ''} ${member.last_name || ''}`.trim() || 'N/A'
+    }
+
+    // Helper function to get primary trade display
+    const getPrimaryTrade = (member: TeamMemberData): string => {
+        return member.primary_trade ? formatTradeName(member.primary_trade) : 'N/A'
+    }
+
+    // Helper function to get member card styling based on role
+    const getMemberCardStyling = (member: TeamMemberData) => {
+        if (member.role === 'admin') {
+            return {
+                cardClass: "flex flex-col sm:flex-row sm:items-center sm:justify-between p-3 sm:p-4 bg-gradient-to-r from-purple-50 to-indigo-50 rounded-lg border-2 border-purple-200 hover:from-purple-100 hover:to-indigo-100 transition-all duration-200 shadow-md space-y-3 sm:space-y-0",
+                avatarClass: "w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-r from-purple-500 to-indigo-500 rounded-full flex items-center justify-center shadow-lg flex-shrink-0",
+                avatarTextClass: "text-white font-bold text-xs sm:text-sm"
+            }
+        }
+        return {
+            cardClass: "flex flex-col sm:flex-row sm:items-center sm:justify-between p-3 sm:p-4 bg-slate-50 rounded-lg border border-slate-200 hover:bg-slate-100 transition-colors space-y-3 sm:space-y-0",
+            avatarClass: "w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0",
+            avatarTextClass: "text-blue-600 font-semibold text-xs sm:text-sm"
+        }
     }
 
     return (
@@ -138,24 +163,24 @@ const TeamInvite: React.FC = () => {
                     </div>
 
                     <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 mb-3">
-                        <code className="text-sm text-slate-700 break-all flex-1 bg-slate-50 px-3 py-2 rounded border text-xs">
+                        <code className="text-xs sm:text-sm text-slate-700 break-all flex-1 bg-slate-50 px-2 sm:px-3 py-2 rounded border w-full sm:w-auto">
                             {inviteLink.link}
                         </code>
-                        <div className="flex gap-2">
+                        <div className="flex gap-2 w-full sm:w-auto">
                             <button
                                 onClick={() => copyToClipboard(inviteLink.link)}
-                                className="flex items-center space-x-1 bg-blue-600 text-white px-3 py-1.5 rounded text-sm hover:bg-blue-700 transition-colors"
+                                className="flex items-center justify-center space-x-1 bg-blue-600 text-white px-3 py-1.5 rounded text-sm hover:bg-blue-700 transition-colors flex-1 sm:flex-none"
                             >
                                 {copied ? <Check size={14} /> : <Copy size={14} />}
-                                <span>{copied ? "Copied!" : "Copy"}</span>
+                                <span className="hidden sm:inline">{copied ? "Copied!" : "Copy"}</span>
                             </button>
                             <button
                                 onClick={createInviteLink}
                                 disabled={loading}
-                                className="flex items-center space-x-1 text-green-600 hover:text-green-800 text-sm font-medium transition-colors"
+                                className="flex items-center justify-center space-x-1 text-green-600 hover:text-green-800 text-sm font-medium transition-colors px-3 py-1.5 rounded border border-green-200 hover:bg-green-50 flex-1 sm:flex-none"
                             >
                                 <Plus size={14} />
-                                <span>New</span>
+                                <span className="hidden sm:inline">New</span>
                             </button>
                         </div>
                     </div>
@@ -181,13 +206,13 @@ const TeamInvite: React.FC = () => {
 
             {/* Team Members Section */}
             <div className="bg-white rounded-lg shadow-sm border border-slate-200">
-                <div className="p-4 border-b border-slate-200">
-                    <div className="flex items-center justify-between">
+                <div className="p-3 sm:p-4 border-b border-slate-200">
+                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-2 sm:space-y-0">
                         <div className="flex items-center space-x-3">
                             <Users className="text-slate-600" size={20} />
                             <div>
-                                <h2 className="text-lg font-semibold text-slate-900">Team Members</h2>
-                                <p className="text-sm text-slate-600">
+                                <h2 className="text-base sm:text-lg font-semibold text-slate-900">Team Members</h2>
+                                <p className="text-xs sm:text-sm text-slate-600">
                                     {teamMembers?.length || 0} member{(teamMembers?.length || 0) !== 1 ? "s" : ""}
                                 </p>
                             </div>
@@ -195,47 +220,73 @@ const TeamInvite: React.FC = () => {
                     </div>
                 </div>
 
-                <div className="p-4">
+                <div className="p-3 sm:p-4">
                     {teamMembers && teamMembers.length > 0 ? (
                         <div className="grid gap-3">
-                            {teamMembers.map((member) => (
-                                <div
-                                    key={member.id || `member-${Math.random()}`}
-                                    className="flex items-center justify-between p-4 bg-slate-50 rounded-lg border border-slate-200 hover:bg-slate-100 transition-colors"
-                                >
-                                    <div className="flex items-center space-x-4">
-                                        <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
-                                            <span className="text-blue-600 font-semibold text-sm">
-                                                {getInitials(member.name)}
-                                            </span>
-                                        </div>
-                                        <div className="flex-1 min-w-0">
-                                            <div className="flex items-center space-x-2 mb-1">
-                                                <h3 className="text-sm font-semibold text-slate-900 truncate">
-                                                    {getMemberProperty(member, 'name')}
-                                                </h3>
-                                                <span
-                                                    className={`inline-flex px-2 py-0.5 text-xs font-medium rounded-full ${member.role === "admin" ? "bg-purple-100 text-purple-800" : "bg-green-100 text-green-800"
-                                                        }`}
-                                                >
-                                                    {getMemberProperty(member, 'role')}
+                            {teamMembers.map((member: TeamMemberData) => {
+                                const styling = getMemberCardStyling(member)
+                                return (
+                                    <div
+                                        key={member.id}
+                                        className={styling.cardClass}
+                                    >
+                                        {/* Mobile and Desktop Layout */}
+                                        <div className="flex items-center space-x-3 sm:space-x-4 w-full sm:w-auto">
+                                            <div className={styling.avatarClass}>
+                                                <span className={styling.avatarTextClass}>
+                                                    {getInitials(member.first_name, member.last_name)}
                                                 </span>
                                             </div>
-                                            <div className="flex flex-col sm:flex-row sm:items-center sm:space-x-4 text-xs text-slate-600">
-                                                <span className="truncate">{getMemberProperty(member, 'email')}</span>
-                                                <span className="hidden sm:inline">•</span>
-                                                <span>{getMemberProperty(member, 'position')}</span>
+                                            <div className="flex-1 min-w-0">
+                                                <div className="flex flex-col sm:flex-row sm:items-center sm:space-x-2 mb-1 sm:mb-1">
+                                                    <h3 className="text-sm sm:text-base font-semibold text-slate-900 truncate">
+                                                        {getFullName(member)}
+                                                    </h3>
+                                                    <div className="flex flex-wrap items-center gap-1 sm:gap-2 mt-1 sm:mt-0">
+                                                        <span
+                                                            className={`inline-flex px-2 py-0.5 text-xs font-medium rounded-full ${member.role === "admin"
+                                                                    ? "bg-gradient-to-r from-purple-100 to-indigo-100 text-purple-800 border border-purple-200"
+                                                                    : "bg-green-100 text-green-800"
+                                                                }`}
+                                                        >
+                                                            {member.role === "admin" ? "👑 Admin" : member.role}
+                                                        </span>
+                                                        {member.can_create_jobs && (
+                                                            <span className="inline-flex px-2 py-0.5 text-xs font-medium rounded-full bg-blue-100 text-blue-800">
+                                                                Jobs
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                                <div className="flex flex-col sm:flex-row sm:items-center sm:space-x-4 text-xs sm:text-sm text-slate-600 space-y-1 sm:space-y-0">
+                                                    <span className="truncate">{member.email || 'N/A'}</span>
+                                                    <span className="hidden sm:inline">•</span>
+                                                    <span className="truncate">{getPrimaryTrade(member)}</span>
+                                                    {member.secondary_trades && member.secondary_trades.length > 0 && (
+                                                        <>
+                                                            <span className="hidden sm:inline">•</span>
+                                                            <span className="text-slate-500">
+                                                                +{member.secondary_trades.length} more
+                                                            </span>
+                                                        </>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        {/* Contact Info - Mobile: Below, Desktop: Right */}
+                                        <div className="flex justify-between sm:justify-end items-center w-full sm:w-auto pt-2 sm:pt-0 border-t sm:border-t-0 border-slate-200">
+                                            <div className="flex flex-col sm:text-right space-y-0.5">
+                                                <p className="text-xs text-slate-500">@{member.username || 'N/A'}</p>
+                                                <p className="text-xs text-slate-400">{member.phone_number || 'N/A'}</p>
+                                            </div>
+                                            <div className="text-right sm:ml-4">
+                                                <p className="text-xs text-slate-400">#{member.user_code || 'N/A'}</p>
                                             </div>
                                         </div>
                                     </div>
-                                    <div className="flex items-center space-x-2">
-                                        <div className="text-right">
-                                            <p className="text-xs text-slate-500">@{getMemberProperty(member, 'username')}</p>
-                                            <p className="text-xs text-slate-400">{getMemberProperty(member, 'phone')}</p>
-                                        </div>
-                                    </div>
-                                </div>
-                            ))}
+                                )
+                            })}
                         </div>
                     ) : (
                         <div className="text-center py-2">
