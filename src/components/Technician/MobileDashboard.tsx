@@ -1,17 +1,20 @@
-import React from 'react';
+import React, { useContext } from 'react';
 import { MapPin, Clock, Phone, Camera, CheckSquare, AlertCircle, Wrench, Navigation, MessageSquare } from 'lucide-react';
 import { mockJobs, mockCustomers, mockBusiness } from '../../data/mockData';
 import { tradeConfigs } from '../../data/tradeConfigs';
 import { Job } from '../../types';
+import { AuthContext } from '../../context/AppContext';
 
 interface MobileDashboardProps {
-  currentUserId: string;
+  currentUserId?: string;
 }
 
 const MobileDashboard: React.FC<MobileDashboardProps> = ({ currentUserId }) => {
+  const context = useContext(AuthContext);
+  const userId = currentUserId || context?.user?.id?.toString() || '';
   const tradeConfig = tradeConfigs[mockBusiness.primaryTrade];
-  
-  const myJobs = mockJobs.filter(job => job.assignedUserId === currentUserId);
+
+  const myJobs = mockJobs.filter(job => job.assignedUserId === userId);
   const todayJobs = myJobs.filter(job => {
     const today = new Date();
     const jobDate = new Date(job.scheduledTime);
@@ -79,7 +82,7 @@ const MobileDashboard: React.FC<MobileDashboardProps> = ({ currentUserId }) => {
             </div>
           </div>
         </div>
-        
+
         <div className="bg-white rounded-lg p-4 shadow-sm border border-slate-200">
           <div className="flex items-center space-x-3">
             <div className="p-2 bg-green-100 rounded-lg">
@@ -104,7 +107,7 @@ const MobileDashboard: React.FC<MobileDashboardProps> = ({ currentUserId }) => {
               const customer = getCustomerInfo(job.customerId);
               const completedTasks = job.checklist.filter(item => item.completed).length;
               const memphisArea = getMemphisArea(job.location);
-              
+
               return (
                 <div key={job.id} className="bg-white rounded-lg p-4 shadow-sm border border-slate-200">
                   <div className="flex items-start justify-between mb-3">
@@ -123,12 +126,12 @@ const MobileDashboard: React.FC<MobileDashboardProps> = ({ currentUserId }) => {
                         <span className="text-sm text-slate-600 truncate">{memphisArea}</span>
                       </div>
                     </div>
-                    
+
                     <div className="text-right flex-shrink-0">
                       <p className="font-medium text-slate-900">
-                        {new Date(job.scheduledTime).toLocaleTimeString([], { 
-                          hour: '2-digit', 
-                          minute: '2-digit' 
+                        {new Date(job.scheduledTime).toLocaleTimeString([], {
+                          hour: '2-digit',
+                          minute: '2-digit'
                         })}
                       </p>
                       <p className="text-xs text-slate-500">{job.estimatedDuration} min</p>
@@ -198,17 +201,17 @@ const MobileDashboard: React.FC<MobileDashboardProps> = ({ currentUserId }) => {
             <Camera className="text-slate-600" size={20} />
             <span className="text-sm font-medium text-slate-700">Take Photo</span>
           </button>
-          
+
           <button className="flex items-center space-x-2 p-3 bg-slate-50 rounded-lg hover:bg-slate-100 transition-colors">
             <Phone className="text-slate-600" size={20} />
             <span className="text-sm font-medium text-slate-700">Call Dispatch</span>
           </button>
-          
+
           <button className="flex items-center space-x-2 p-3 bg-slate-50 rounded-lg hover:bg-slate-100 transition-colors">
             <Clock className="text-slate-600" size={20} />
             <span className="text-sm font-medium text-slate-700">Log Time</span>
           </button>
-          
+
           <button className="flex items-center space-x-2 p-3 bg-slate-50 rounded-lg hover:bg-slate-100 transition-colors">
             <MessageSquare className="text-slate-600" size={20} />
             <span className="text-sm font-medium text-slate-700">Send Update</span>

@@ -3,12 +3,18 @@ import { User, Bell, Search, MapPin } from 'lucide-react';
 import { User as UserType } from '../../types';
 import { mockBusiness } from '../../data/mockData';
 import { AuthContext, useAuth } from '../../context/AppContext';
+import { useNavigate } from 'react-router-dom';
 
 
 
 const Header: React.FC = () => {
   const context = useContext(AuthContext);
   const user = context?.user;
+  const navigate = useNavigate();
+  const handleLogout = () => {
+    context?.logout();
+    navigate('/');
+  };
 
   const capitalize = (str: any) => {
     if (!str) return '';
@@ -55,16 +61,26 @@ const Header: React.FC = () => {
 
 
 
-          {/* User Avatar */}
-          <div className="flex items-center space-x-2">
-            <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center">
-              <span className="text-white text-sm font-semibold">{user?.first_name.charAt(0)}</span>
-            </div>
-            <div className="hidden sm:block">
-              <span className="text-sm font-medium text-slate-700">{capitalize(user?.first_name)}</span>
-              <p className="text-xs text-slate-500">{user?.primary_trade.toUpperCase()}</p>
-            </div>
-          </div>
+          {/* User Avatar and Logout */}
+          {user && (
+            <>
+              <div className="flex items-center space-x-2">
+                <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center">
+                  <span className="text-white text-sm font-semibold">{user?.first_name.charAt(0)}</span>
+                </div>
+                <div className="hidden sm:block">
+                  <span className="text-sm font-medium text-slate-700">{capitalize(user?.first_name)}</span>
+                  <p className="text-xs text-slate-500">{user?.primary_trade.toUpperCase()}</p>
+                </div>
+              </div>
+              <button
+                onClick={handleLogout}
+                className="ml-2 px-3 py-1 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors text-xs font-semibold"
+              >
+                Logout
+              </button>
+            </>
+          )}
         </div>
       </div>
     </header>

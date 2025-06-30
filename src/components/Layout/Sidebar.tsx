@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import {
   Calendar,
   ClipboardList,
@@ -19,30 +20,30 @@ import { mockBusiness } from '../../data/mockData';
 
 interface SidebarProps {
   currentUser: any;
-  activeTab: string;
-  onTabChange: (tab: string) => void;
 }
 
-const Sidebar: React.FC<SidebarProps> = ({ currentUser, activeTab, onTabChange }) => {
+const Sidebar: React.FC<SidebarProps> = ({ currentUser }) => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const tradeConfig = tradeConfigs[mockBusiness.primaryTrade];
+  const navigate = useNavigate();
+  const location = useLocation();
 
   const adminMenuItems = [
-    { id: 'dashboard', label: 'Dashboard', icon: Home },
-    { id: 'schedule', label: 'Schedule', icon: Calendar },
-    { id: 'jobs', label: 'Work Orders', icon: ClipboardList },
-    { id: 'customers', label: 'Customers', icon: Users },
-    { id: 'estimates', label: 'Estimates', icon: FileText },
-    { id: 'inventory', label: 'Inventory', icon: Package },
-    { id: 'reports', label: 'Reports', icon: BarChart3 },
-    { id: 'team', label: 'Team', icon: UsersRound },
-    { id: 'settings', label: 'Settings', icon: Settings }
+    { id: 'dashboard', label: 'Dashboard', icon: Home, route: '/dashboard' },
+    { id: 'schedule', label: 'Schedule', icon: Calendar, route: '/schedule' },
+    { id: 'jobs', label: 'Work Orders', icon: ClipboardList, route: '/jobs' },
+    { id: 'customers', label: 'Customers', icon: Users, route: '/customers' },
+    { id: 'estimates', label: 'Estimates', icon: FileText, route: '/estimates' },
+    { id: 'inventory', label: 'Inventory', icon: Package, route: '/inventory' },
+    { id: 'reports', label: 'Reports', icon: BarChart3, route: '/reports' },
+    { id: 'team', label: 'Team', icon: UsersRound, route: '/team' },
+    { id: 'settings', label: 'Settings', icon: Settings, route: '/settings' }
   ];
 
   const technicianMenuItems = [
-    { id: 'mobile-dashboard', label: 'My Dashboard', icon: Smartphone },
-    { id: 'my-jobs', label: 'My Jobs', icon: ClipboardList },
-    { id: 'schedule', label: 'Schedule', icon: Calendar }
+    { id: 'mobile-dashboard', label: 'My Dashboard', icon: Smartphone, route: '/mobile-dashboard' },
+    { id: 'my-jobs', label: 'My Jobs', icon: ClipboardList, route: '/my-jobs' },
+    { id: 'schedule', label: 'Schedule', icon: Calendar, route: '/schedule' }
   ];
 
   // Determine menu items based on business_type
@@ -57,8 +58,8 @@ const Sidebar: React.FC<SidebarProps> = ({ currentUser, activeTab, onTabChange }
     menuItems = technicianMenuItems;
   }
 
-  const handleMenuItemClick = (itemId: string) => {
-    onTabChange(itemId);
+  const handleMenuItemClick = (route: string) => {
+    navigate(route);
     setIsMobileMenuOpen(false);
   };
 
@@ -136,11 +137,12 @@ const Sidebar: React.FC<SidebarProps> = ({ currentUser, activeTab, onTabChange }
         <nav className="space-y-1 flex-1">
           {menuItems.map((item) => {
             const Icon = item.icon;
+            const isActive = location.pathname === item.route;
             return (
               <button
                 key={item.id}
-                onClick={() => handleMenuItemClick(item.id)}
-                className={`w-full flex items-center space-x-3 px-3 py-3 rounded-lg text-left transition-colors ${activeTab === item.id
+                onClick={() => handleMenuItemClick(item.route)}
+                className={`w-full flex items-center space-x-3 px-3 py-3 rounded-lg text-left transition-colors ${isActive
                   ? 'bg-blue-600 text-white'
                   : 'text-slate-300 hover:bg-slate-800 hover:text-white'
                   }`}

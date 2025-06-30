@@ -1,18 +1,21 @@
 import React, { useState } from 'react';
-import Cookies from 'js-cookie';
 import { useAuth } from '../../context/AppContext';
+import { useNavigate } from 'react-router-dom';
 
-interface LoginPageProps {
-    completeLogin: () => void;
-    signUp: () => void;
-}
-
-const LoginPage: React.FC<LoginPageProps> = ({ completeLogin, signUp }) => {
+const LoginPage: React.FC = () => {
     const [username, setUsername] = useState('');
     const [password, setPassword] = useState('');
     const [errorMsg, setErrorMsg] = useState('');
     const [loading, setLoading] = useState(false);
-    const { refetchProfile } = useAuth()
+    const { refetchProfile, setToastMessage, setToastType, user } = useAuth();
+    const navigate = useNavigate();
+
+    const setToken = (token: string) => {
+        if (window.Cookies) {
+            window.Cookies.set('token', token, { expires: 7 });
+        }
+        localStorage.setItem('token', token);
+    };
 
     const handleLogin = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -35,13 +38,25 @@ const LoginPage: React.FC<LoginPageProps> = ({ completeLogin, signUp }) => {
 
             const data = await response.json();
 
-            localStorage.setItem('token', data.token)
-            Cookies.set('token', data.token, { expires: 7 })
+            setToken(data.token);
             await refetchProfile();
 
-            console.log("profile logged in!")
-            completeLogin();
-            // Optional: Redirect or update UI state
+            setToastMessage('Login successful!');
+            setToastType('success');
+
+            setTimeout(() => {
+                const u = user || JSON.parse(localStorage.getItem('user') || 'null');
+                if (
+                    u?.role === 'admin' ||
+                    u?.role === 'solo' ||
+                    u?.business_type === 'solo_operator' ||
+                    u?.business_type === 'team_business'
+                ) {
+                    navigate('/dashboard');
+                } else {
+                    navigate('/mobile-dashboard');
+                }
+            }, 200);
         } catch (error: any) {
             setErrorMsg(error.message || 'Something went wrong');
         } finally {
@@ -85,7 +100,7 @@ const LoginPage: React.FC<LoginPageProps> = ({ completeLogin, signUp }) => {
                         {loading ? 'Logging in...' : 'Login'}
                     </button>
                 </form>
-                <span ><p className="text-center text-sm text-slate-500 mt-4">Don’t have an account?</p> <p onClick={signUp} className="text-blue-600 cursor-pointer hover:underline">Register</p></span>
+                <span ><p className="text-center text-sm text-slate-500 mt-4">Don't have an account?</p> <p onClick={() => navigate('/signup')} className="text-blue-600 cursor-pointer hover:underline">Register</p></span>
             </div>
         </div>
     );

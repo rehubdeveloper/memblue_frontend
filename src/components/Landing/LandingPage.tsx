@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState } from "react"
+import React, { useState, useContext } from "react"
 import {
   ArrowRight,
   CheckCircle,
@@ -17,6 +17,8 @@ import {
   Menu,
   X,
 } from "lucide-react"
+import { Link, useNavigate } from 'react-router-dom';
+import { AuthContext } from '../../context/AppContext';
 
 interface LandingPageProps {
   onGetStarted?: () => void
@@ -71,28 +73,24 @@ const testimonials = [
   },
 ]
 
-const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted, onLogin }) => {
+const LandingPage: React.FC = () => {
+  const context = useContext(AuthContext);
+  const user = context?.user;
+  const navigate = useNavigate();
   const [activeFeature, setActiveFeature] = useState<FeatureKey>("electricians")
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
 
+  const handleLogout = () => {
+    context?.logout();
+    navigate('/login');
+  };
+
   const handleGetStarted = () => {
-    if (onGetStarted) {
-      onGetStarted()
-    } else {
-      // Default behavior - could scroll to signup form or redirect
-      console.log("Get started clicked")
-      // For now, we'll just log - in a real app this would handle signup
-    }
+    navigate('/signup');
   }
 
   const handleLogin = () => {
-    if (onLogin) {
-      onLogin()
-    } else {
-      // Default behavior - could redirect to login page
-      console.log("Login clicked")
-      // For now, we'll just log - in a real app this would handle login
-    }
+    navigate('/login');
   }
 
   const handleViewPricing = () => {
@@ -121,19 +119,38 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted, onLogin }) => {
 
             {/* Desktop Navigation */}
             <div className="hidden md:flex items-center space-x-4">
-              <button
-                onClick={handleLogin}
-                className="flex items-center space-x-2 text-white hover:text-blue-200 transition-colors"
-              >
-                <LogIn size={18} />
-                <span className="font-medium">Login</span>
-              </button>
-              <button
-                onClick={handleGetStarted}
-                className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg font-semibold transition-colors"
-              >
-                Get Started
-              </button>
+              {user ? (
+                <>
+                  <Link
+                    to={user.role === 'admin' || (user.role === 'solo' && user.business_type === 'solo_operator') ? '/dashboard' : '/mobile-dashboard'}
+                    className="flex items-center space-x-2 text-white hover:text-blue-200 transition-colors"
+                  >
+                    <span className="font-medium">Dashboard</span>
+                  </Link>
+                  <button
+                    onClick={handleLogout}
+                    className="flex items-center space-x-2 text-white hover:text-blue-200 transition-colors"
+                  >
+                    <span className="font-medium">Logout</span>
+                  </button>
+                </>
+              ) : (
+                <>
+                  <button
+                    onClick={handleLogin}
+                    className="flex items-center space-x-2 text-white hover:text-blue-200 transition-colors"
+                  >
+                    <LogIn size={18} />
+                    <span className="font-medium">Login</span>
+                  </button>
+                  <button
+                    onClick={handleGetStarted}
+                    className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg font-semibold transition-colors"
+                  >
+                    Get Started
+                  </button>
+                </>
+              )}
             </div>
 
             {/* Mobile Menu Button */}
@@ -148,25 +165,39 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted, onLogin }) => {
           {mobileMenuOpen && (
             <div className="md:hidden bg-slate-900 bg-opacity-95 backdrop-blur-sm rounded-lg mt-2 p-4">
               <div className="flex flex-col space-y-4">
-                <button
-                  onClick={() => {
-                    handleLogin()
-                    setMobileMenuOpen(false)
-                  }}
-                  className="flex items-center space-x-2 text-white hover:text-blue-200 transition-colors py-2"
-                >
-                  <LogIn size={18} />
-                  <span className="font-medium">Login</span>
-                </button>
-                <button
-                  onClick={() => {
-                    handleGetStarted()
-                    setMobileMenuOpen(false)
-                  }}
-                  className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg font-semibold transition-colors text-center"
-                >
-                  Get Started
-                </button>
+                {user ? (
+                  <>
+                    <Link
+                      to={user.role === 'admin' || user.role === 'solo' || user.business_type === 'solo_operator' ? '/dashboard' : '/mobile-dashboard'}
+                      className="flex items-center space-x-2 text-white hover:text-blue-200 transition-colors py-2"
+                      onClick={() => setMobileMenuOpen(false)}
+                    >
+                      <span className="font-medium">Dashboard</span>
+                    </Link>
+                    <button
+                      onClick={() => { handleLogout(); setMobileMenuOpen(false); }}
+                      className="flex items-center space-x-2 text-white hover:text-blue-200 transition-colors py-2"
+                    >
+                      <span className="font-medium">Logout</span>
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <button
+                      onClick={() => { handleLogin(); setMobileMenuOpen(false); }}
+                      className="flex items-center space-x-2 text-white hover:text-blue-200 transition-colors py-2"
+                    >
+                      <LogIn size={18} />
+                      <span className="font-medium">Login</span>
+                    </button>
+                    <button
+                      onClick={() => { handleGetStarted(); setMobileMenuOpen(false); }}
+                      className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg font-semibold transition-colors text-center"
+                    >
+                      Get Started
+                    </button>
+                  </>
+                )}
               </div>
             </div>
           )}

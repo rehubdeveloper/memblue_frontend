@@ -8,7 +8,7 @@ interface User {
   username: string;
   email: string;
   first_name: string;
-  role: 'admin' | 'technician' | 'customer';
+  role: 'admin' | 'solo' | 'member';
   last_name: string;
   phone_number: string;
   primary_trade: string;
@@ -79,6 +79,7 @@ interface AuthContextType {
   sendTeamInvite: () => Promise<string>;
   teamMembers: TeamMember[] | null;
   getTeamMembers: () => Promise<void>;
+  logout: () => void;
 }
 
 export const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -106,6 +107,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   // Helper function to get token consistently
   const getToken = (): string | null => {
     return Cookies.get("token") || localStorage.getItem('token');
+  };
+
+  // Helper to set token in both cookies and localStorage
+  const setToken = (token: string) => {
+    Cookies.set('token', token, { expires: 7 });
+    localStorage.setItem('token', token);
   };
 
   const fetchUserProfile = async (): Promise<void> => {
@@ -503,6 +510,15 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     await getInventory();
   };
 
+  const logout = () => {
+    setUser(null);
+    Cookies.remove('token');
+    localStorage.removeItem('token');
+    setToastMessage('Logged out successfully!');
+    setToastType('success');
+    window.location.href = '/';
+  };
+
   useEffect(() => {
     const initialize = async () => {
       await fetchUserProfile();
@@ -543,7 +559,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       // Team functions
       sendTeamInvite,
       teamMembers,
-      getTeamMembers
+      getTeamMembers,
+      logout
     }}>
       {children}
     </AuthContext.Provider>

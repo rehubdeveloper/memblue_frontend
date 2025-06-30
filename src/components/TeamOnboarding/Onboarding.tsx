@@ -12,7 +12,7 @@ interface OnboardFormData {
 }
 
 type OnboardPageProps = {
-    setShowLogin: React.Dispatch<React.SetStateAction<boolean>>;
+    setShowLogin?: React.Dispatch<React.SetStateAction<boolean>>;
 };
 
 
@@ -85,8 +85,8 @@ const OnboardPage: React.FC<OnboardPageProps> = ({ setShowLogin }) => {
 
             // Redirect to login page after 3 seconds
             setTimeout(() => {
-                setShowLogin(true)
-                navigate('/');
+                if (setShowLogin) setShowLogin(true);
+                navigate('/login');
             }, 2000);
 
         } catch (error) {
