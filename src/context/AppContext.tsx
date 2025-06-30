@@ -8,6 +8,7 @@ interface User {
   username: string;
   email: string;
   first_name: string;
+  role: 'admin' | 'technician' | 'customer';
   last_name: string;
   phone_number: string;
   primary_trade: string;
@@ -42,6 +43,8 @@ interface TeamMember {
   name: string;
   email: string;
   phone: string;
+  first_name: string;
+  last_name: string;
   position: string;
   username: string;
   can_create_jobs: boolean;
@@ -128,7 +131,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       }
 
       const data = await response.json();
-      console.log("Profile Fetched!");
+      console.log("Profile Fetched!", data);
 
       setUser(data);
     } catch (error) {

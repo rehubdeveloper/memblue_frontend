@@ -4,12 +4,9 @@ import { User as UserType } from '../../types';
 import { mockBusiness } from '../../data/mockData';
 import { AuthContext, useAuth } from '../../context/AppContext';
 
-interface HeaderProps {
-  currentUser: UserType;
-  onUserSwitch: (userId: string) => void;
-}
 
-const Header: React.FC<HeaderProps> = ({ currentUser, onUserSwitch }) => {
+
+const Header: React.FC = () => {
   const context = useContext(AuthContext);
   const user = context?.user;
 
@@ -55,18 +52,8 @@ const Header: React.FC<HeaderProps> = ({ currentUser, onUserSwitch }) => {
             </span>
           </button>
 
-          {/* User Switcher - Hidden on mobile */}
-          <div className="hidden lg:flex items-center space-x-2">
-            <select
-              value={currentUser.id}
-              onChange={(e) => onUserSwitch(e.target.value)}
-              className="text-sm border border-slate-300 rounded px-2 py-1"
-            >
-              <option value="user-1">Sarah (Admin)</option>
-              <option value="user-2">Mike (Tech)</option>
-              <option value="user-3">James (Tech)</option>
-            </select>
-          </div>
+
+
 
           {/* User Avatar */}
           <div className="flex items-center space-x-2">

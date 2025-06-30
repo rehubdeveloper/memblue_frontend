@@ -1,10 +1,8 @@
-"use client"
-
 import type React from "react"
 
-import { useState } from "react"
+import { useState, useContext } from "react"
 import { Plus, Copy, Check, Users, LinkIcon, X } from "lucide-react"
-import { useAuth } from "../../context/AppContext"
+import { AuthContext } from "../../context/AppContext"
 
 interface TeamMemberData {
     id: number
@@ -33,27 +31,41 @@ const TeamInvite: React.FC = () => {
     const [loading, setLoading] = useState<boolean>(false)
     const [copied, setCopied] = useState<boolean>(false)
 
-    const { sendTeamInvite, teamMembers }: { sendTeamInvite: () => Promise<string>; teamMembers: TeamMemberData[] } = useAuth()
+    const context = useContext(AuthContext);
+    const sendTeamInvite = context?.sendTeamInvite;
+    // Map TeamMember to TeamMemberData for UI compatibility
+    const teamMembers = (context?.teamMembers ?? []).map((member: any) => ({
+        id: member.id,
+        user_code: member.user_code || '',
+        username: member.username,
+        email: member.email,
+        first_name: member.first_name,
+        last_name: member.last_name,
+        phone_number: member.phone_number || member.phone || '',
+        primary_trade: member.primary_trade || '',
+        secondary_trades: member.secondary_trades || [],
+        business_type: member.business_type || '',
+        role: member.role,
+        can_create_jobs: member.can_create_jobs,
+        team: member.team || 0,
+    }));
 
     const createInviteLink = async (): Promise<void> => {
         setLoading(true)
-
         try {
-            const linkUrl: string = await sendTeamInvite()
-
+            if (!sendTeamInvite) throw new Error('Team invite not available');
+            const linkUrl: string = await sendTeamInvite();
             // Set the single invite link
             const newInvite: InviteLink = {
                 id: Date.now().toString(),
                 link: linkUrl,
                 createdAt: new Date().toISOString(),
             }
-
             setInviteLink(newInvite)
         } catch (error) {
             console.error("Error creating invite link:", error)
             // Error is already handled in the context with toast
         }
-
         setLoading(false)
     }
 
@@ -245,8 +257,8 @@ const TeamInvite: React.FC = () => {
                                                     <div className="flex flex-wrap items-center gap-1 sm:gap-2 mt-1 sm:mt-0">
                                                         <span
                                                             className={`inline-flex px-2 py-0.5 text-xs font-medium rounded-full ${member.role === "admin"
-                                                                    ? "bg-gradient-to-r from-purple-100 to-indigo-100 text-purple-800 border border-purple-200"
-                                                                    : "bg-green-100 text-green-800"
+                                                                ? "bg-gradient-to-r from-purple-100 to-indigo-100 text-purple-800 border border-purple-200"
+                                                                : "bg-green-100 text-green-800"
                                                                 }`}
                                                         >
                                                             {member.role === "admin" ? "👑 Admin" : member.role}

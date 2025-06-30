@@ -8,6 +8,19 @@ export interface User {
   avatar?: string;
 }
 
+export interface NewUser {
+  id: number;
+  username: string;
+  email: string;
+  role: 'admin' | 'technician' | 'customer';
+  first_name: string;
+  last_name: string;
+  phone_number: string;
+  primary_trade: string;
+  secondary_trades: string[];
+  business_type: string;
+}
+
 export interface Business {
   id: string;
   name: string;

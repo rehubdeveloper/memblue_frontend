@@ -14,13 +14,11 @@ import {
   X,
   UsersRound
 } from 'lucide-react';
-import { User } from '../../types';
 import { tradeConfigs } from '../../data/tradeConfigs';
 import { mockBusiness } from '../../data/mockData';
-import { useAuth } from '../../context/AppContext';
 
 interface SidebarProps {
-  currentUser: User;
+  currentUser: any;
   activeTab: string;
   onTabChange: (tab: string) => void;
 }
@@ -47,14 +45,22 @@ const Sidebar: React.FC<SidebarProps> = ({ currentUser, activeTab, onTabChange }
     { id: 'schedule', label: 'Schedule', icon: Calendar }
   ];
 
-  const menuItems = currentUser.role === 'admin' ? adminMenuItems : technicianMenuItems;
+  // Determine menu items based on business_type
+  let menuItems;
+  if (['solo_operator', 'team_business'].includes(currentUser.business_type)) {
+    // For solo_operator, remove Team tab
+    const filteredAdminMenuItems = adminMenuItems.filter(item =>
+      item.id !== 'team' || currentUser.business_type === 'team_business'
+    );
+    menuItems = filteredAdminMenuItems;
+  } else {
+    menuItems = technicianMenuItems;
+  }
 
   const handleMenuItemClick = (itemId: string) => {
     onTabChange(itemId);
     setIsMobileMenuOpen(false);
   };
-
-  const { user } = useAuth();
 
   const capitalize = (str: any) => {
     if (!str) return '';
@@ -109,8 +115,8 @@ const Sidebar: React.FC<SidebarProps> = ({ currentUser, activeTab, onTabChange }
           <div className="flex items-center space-x-2 p-2 bg-slate-800 rounded-lg">
             <span className="text-lg">{tradeConfig.icon}</span>
             <div className="min-w-0 flex-1">
-              <p className="text-sm font-medium text-white truncate">{user?.username || 'name'}</p>
-              <p className="text-xs text-slate-400 truncate">{`${capitalize(user?.primary_trade)} services`}</p>
+              <p className="text-sm font-medium text-white truncate">{currentUser?.username || 'name'}</p>
+              <p className="text-xs text-slate-400 truncate">{`${capitalize(currentUser?.primary_trade)} services`}</p>
             </div>
           </div>
         </div>
@@ -118,10 +124,10 @@ const Sidebar: React.FC<SidebarProps> = ({ currentUser, activeTab, onTabChange }
         <div className="mb-6">
           <div className="flex items-center space-x-3 p-3 bg-slate-800 rounded-lg">
             <div className="w-10 h-10 bg-blue-500 rounded-full flex items-center justify-center flex-shrink-0">
-              <span className="text-sm font-semibold">{user?.first_name.charAt(0)}</span>
+              <span className="text-sm font-semibold">{currentUser?.first_name?.charAt(0)}</span>
             </div>
             <div className="min-w-0 flex-1">
-              <p className="font-medium truncate">{`${capitalize(user?.first_name)} ${capitalize(user?.last_name)}`}</p>
+              <p className="font-medium truncate">{`${capitalize(currentUser?.first_name)} ${capitalize(currentUser?.last_name)}`}</p>
               <p className="text-xs text-slate-400 capitalize">{currentUser.role}</p>
             </div>
           </div>
