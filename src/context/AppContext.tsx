@@ -510,13 +510,28 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     await getInventory();
   };
 
-  const logout = () => {
-    setUser(null);
-    Cookies.remove('token');
-    localStorage.removeItem('token');
-    setToastMessage('Logged out successfully!');
-    setToastType('success');
-    window.location.href = '/';
+  const logout = async () => {
+    const token = getToken();
+    try {
+      if (token) {
+        await fetch(`${import.meta.env.VITE_BASE_URL}/logout/`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Token ${token}`
+          },
+        });
+      }
+    } catch (error) {
+      console.error('Logout API error:', error);
+    } finally {
+      setUser(null);
+      Cookies.remove('token');
+      localStorage.removeItem('token');
+      setToastMessage('Logged out successfully!');
+      setToastType('success');
+      window.location.href = '/';
+    }
   };
 
   useEffect(() => {
