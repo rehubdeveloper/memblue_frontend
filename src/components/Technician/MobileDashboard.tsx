@@ -1,9 +1,10 @@
-import React, { useContext } from 'react';
+import React, { useContext, useEffect } from 'react';
 import { MapPin, Clock, Phone, Camera, CheckSquare, AlertCircle, Wrench, Navigation, MessageSquare } from 'lucide-react';
 import { mockJobs, mockCustomers, mockBusiness } from '../../data/mockData';
 import { tradeConfigs } from '../../data/tradeConfigs';
 import { Job } from '../../types';
 import { AuthContext } from '../../context/AppContext';
+import { useNavigate } from 'react-router-dom';
 
 interface MobileDashboardProps {
   currentUserId?: string;
@@ -12,7 +13,15 @@ interface MobileDashboardProps {
 const MobileDashboard: React.FC<MobileDashboardProps> = ({ currentUserId }) => {
   const context = useContext(AuthContext);
   const userId = currentUserId || context?.user?.id?.toString() || '';
+  const user = context?.user;
+  const navigate = useNavigate();
   const tradeConfig = tradeConfigs[mockBusiness.primaryTrade];
+
+  useEffect(() => {
+    if (user && (user.role === 'admin' || user.role === 'solo')) {
+      navigate('/dashboard');
+    }
+  }, [user, navigate]);
 
   const myJobs = mockJobs.filter(job => job.assignedUserId === userId);
   const todayJobs = myJobs.filter(job => {
