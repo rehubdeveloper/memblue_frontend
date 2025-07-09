@@ -32,20 +32,126 @@ const DashboardOverview = () => {
         });
         if (!res.ok) {
           if (res.status === 403) {
-            // For solo operators, create a fallback dashboard
-            setDashboard({
-              jobs_today: 0,
-              jobs_today_change: 0,
-              revenue_this_month: '0.00',
-              revenue_change_percent: 0,
-              active_customers: 0,
-              customers_with_open_jobs: 0,
-              new_customers_this_week: 0,
-              open_jobs: 0,
-              overdue_jobs: 0,
-              todays_schedule: [],
-              alerts: []
-            });
+            // For solo operators, fetch their work orders and calculate dashboard
+            try {
+              const workOrdersRes = await fetch(`${import.meta.env.VITE_BASE_URL}/work-orders/`, {
+                headers: {
+                  'Content-Type': 'application/json',
+                  'Authorization': `Token ${token}`,
+                },
+              });
+
+              if (workOrdersRes.ok) {
+                const workOrders = await workOrdersRes.json();
+
+                // Calculate dashboard metrics from work orders
+                const today = new Date();
+                today.setHours(0, 0, 0, 0);
+
+                const jobsToday = workOrders.filter((job: any) => {
+                  const jobDate = new Date(job.scheduled_for);
+                  jobDate.setHours(0, 0, 0, 0);
+                  return jobDate.getTime() === today.getTime();
+                }).length;
+
+                const openJobs = workOrders.filter((job: any) =>
+                  ['pending', 'confirmed', 'en_route', 'in_progress'].includes(job.status)
+                ).length;
+
+                const overdueJobs = workOrders.filter((job: any) => {
+                  const scheduledDate = new Date(job.scheduled_for);
+                  return scheduledDate < today && ['pending', 'confirmed', 'en_route', 'in_progress'].includes(job.status);
+                }).length;
+
+                const completedJobs = workOrders.filter((job: any) => job.status === 'completed').length;
+
+                // Calculate revenue from completed jobs
+                const revenueThisMonth = workOrders
+                  .filter((job: any) => {
+                    const jobDate = new Date(job.created_at);
+                    return jobDate.getMonth() === today.getMonth() &&
+                      jobDate.getFullYear() === today.getFullYear() &&
+                      job.status === 'completed';
+                  })
+                  .reduce((sum: number, job: any) => sum + parseFloat(job.amount || '0'), 0)
+                  .toFixed(2);
+
+                // Get unique customers
+                const uniqueCustomers = [...new Set(workOrders.map((job: any) => job.customer))].length;
+
+                // Get customers with open jobs
+                const customersWithOpenJobs = [...new Set(
+                  workOrders
+                    .filter((job: any) => ['pending', 'confirmed', 'en_route', 'in_progress'].includes(job.status))
+                    .map((job: any) => job.customer)
+                )].length;
+
+                // Today's schedule
+                const todaysSchedule = workOrders
+                  .filter((job: any) => {
+                    const jobDate = new Date(job.scheduled_for);
+                    jobDate.setHours(0, 0, 0, 0);
+                    return jobDate.getTime() === today.getTime();
+                  })
+                  .map((job: any) => ({
+                    job_number: job.job_number,
+                    title: job.job_type,
+                    address: job.address,
+                    scheduled_for: job.scheduled_for,
+                    status: job.status
+                  }));
+
+                // Alerts
+                const alerts = [];
+                if (overdueJobs > 0) {
+                  alerts.push(`${overdueJobs} job(s) are overdue!`);
+                }
+
+                setDashboard({
+                  jobs_today: jobsToday,
+                  jobs_today_change: 0, // Can't calculate without historical data
+                  revenue_this_month: revenueThisMonth,
+                  revenue_change_percent: 0, // Can't calculate without historical data
+                  active_customers: uniqueCustomers,
+                  customers_with_open_jobs: customersWithOpenJobs,
+                  new_customers_this_week: 0, // Can't calculate without historical data
+                  open_jobs: openJobs,
+                  overdue_jobs: overdueJobs,
+                  todays_schedule: todaysSchedule,
+                  alerts: alerts
+                });
+              } else {
+                // Fallback if work orders fetch fails
+                setDashboard({
+                  jobs_today: 0,
+                  jobs_today_change: 0,
+                  revenue_this_month: '0.00',
+                  revenue_change_percent: 0,
+                  active_customers: 0,
+                  customers_with_open_jobs: 0,
+                  new_customers_this_week: 0,
+                  open_jobs: 0,
+                  overdue_jobs: 0,
+                  todays_schedule: [],
+                  alerts: []
+                });
+              }
+            } catch (workOrdersError) {
+              // Fallback if work orders fetch fails
+              setDashboard({
+                jobs_today: 0,
+                jobs_today_change: 0,
+                revenue_this_month: '0.00',
+                revenue_change_percent: 0,
+                active_customers: 0,
+                customers_with_open_jobs: 0,
+                new_customers_this_week: 0,
+                open_jobs: 0,
+                overdue_jobs: 0,
+                todays_schedule: [],
+                alerts: []
+              });
+            }
             setLoading(false);
             return;
           }
@@ -54,6 +160,10 @@ const DashboardOverview = () => {
         const data = await res.json();
         setDashboard(data);
       } catch (err: any) {
+        // Only log non-403 errors
+        if (!err.message?.includes('403')) {
+          console.error('Dashboard fetch error:', err);
+        }
         setError(err.message || 'Unknown error');
       } finally {
         setLoading(false);

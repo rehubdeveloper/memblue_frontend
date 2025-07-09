@@ -61,7 +61,7 @@ const NewJobDialog: React.FC<NewJobDialogProps> = ({ open, onClose, onSubmit }) 
         priority: form.priority,
         tags: form.tags.split(',').map(tag => tag.trim()).filter(Boolean),
         scheduled_for: form.scheduled_for,
-        assigned_to: Number(form.assigned_to),
+        assigned_to: user?.role === 'solo' ? user.id : Number(form.assigned_to),
         progress_current: Number(form.progress_current),
         progress_total: Number(form.progress_total),
         amount: Number(form.amount),
@@ -69,8 +69,8 @@ const NewJobDialog: React.FC<NewJobDialogProps> = ({ open, onClose, onSubmit }) 
         primary_trade: user?.primary_trade,
         owner: user?.id,
       };
+      console.log(payload)
       await onSubmit(payload);
-      console.log('job created successfully')
       setForm({
         customer_id: 0,
         job_type: '',
@@ -223,21 +223,23 @@ const NewJobDialog: React.FC<NewJobDialogProps> = ({ open, onClose, onSubmit }) 
                 />
               </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Assigned To</label>
-                <select
-                  name="assigned_to"
-                  value={form.assigned_to}
-                  onChange={handleChange}
-                  required
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
-                >
-                  <option value="">Select Team Member</option>
-                  {teamMembers && teamMembers.map(tm => (
-                    <option key={tm.id} value={tm.id}>{tm.first_name} {tm.last_name} ({tm.username})</option>
-                  ))}
-                </select>
-              </div>
+              {user?.role === 'admin' && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Assigned To</label>
+                  <select
+                    name="assigned_to"
+                    value={form.assigned_to}
+                    onChange={handleChange}
+                    required
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                  >
+                    <option value="">Select Team Member</option>
+                    {teamMembers && teamMembers.map(tm => (
+                      <option key={tm.id} value={tm.id}>{tm.first_name} {tm.last_name} ({tm.position})</option>
+                    ))}
+                  </select>
+                </div>
+              )}
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
