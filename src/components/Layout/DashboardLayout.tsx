@@ -18,7 +18,7 @@ const DashboardLayout: React.FC = () => {
             <Header />
             <div className="flex flex-1">
                 <Sidebar currentUser={user} />
-                <main className="flex-1 ml-0 lg:ml-64 p-4 lg:p-6 bg-slate-50 min-h-screen">
+                <main className="flex-1 ml-0 lg:ml-4 p-4 lg:p-6 bg-slate-50 min-h-screen">
                     <Outlet />
                 </main>
             </div>
