@@ -3,11 +3,322 @@ import { Plus, Search, Filter, MapPin, Clock, User, Phone, Wrench } from 'lucide
 import { mockJobs, mockCustomers, mockUsers, mockBusiness } from '../../data/mockData';
 import { tradeConfigs } from '../../data/tradeConfigs';
 import { Job } from '../../types';
-import { useAuth } from '../../context/AppContext'
+import { useAuth } from '../../context/AppContext';
 
 interface JobsListProps {
   onNewJob?: () => void;
 }
+
+const statusOptions = [
+  'pending',
+  'confirmed',
+  'en_route',
+  'in_progress',
+  'completed',
+  'cancelled',
+];
+
+const priorityOptions = ['low', 'medium', 'high'];
+
+interface NewJobDialogProps {
+  open: boolean;
+  onClose: () => void;
+  onSubmit: (payload: any) => Promise<any>;
+}
+
+const NewJobDialog: React.FC<NewJobDialogProps> = ({ open, onClose, onSubmit }) => {
+  const { customers, teamMembers, user } = useAuth();
+  const [form, setForm] = useState({
+    customer_id: 0,
+    job_type: '',
+    description: '',
+    status: 'pending',
+    priority: 'low',
+    tags: '',
+    scheduled_for: '',
+    assigned_to: '',
+    progress_current: '',
+    progress_total: '',
+    amount: '',
+    address: '',
+  });
+  const [loading, setLoading] = useState(false);
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
+    const { name, value } = e.target;
+    setForm(prev => ({ ...prev, [name]: value }));
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    try {
+      const payload = {
+        customer: parseInt(form.customer_id.toString()),
+        job_type: form.job_type,
+        description: form.description,
+        status: form.status,
+        priority: form.priority,
+        tags: form.tags.split(',').map(tag => tag.trim()).filter(Boolean),
+        scheduled_for: form.scheduled_for,
+        assigned_to: Number(form.assigned_to),
+        progress_current: Number(form.progress_current),
+        progress_total: Number(form.progress_total),
+        amount: Number(form.amount),
+        address: form.address,
+        primary_trade: user?.primary_trade,
+        owner: user?.id,
+      };
+      await onSubmit(payload);
+      console.log('job created successfully')
+      setForm({
+        customer_id: 0,
+        job_type: '',
+        description: '',
+        status: 'pending',
+        priority: 'low',
+        tags: '',
+        scheduled_for: '',
+        assigned_to: '',
+        progress_current: '',
+        progress_total: '',
+        amount: '',
+        address: '',
+      });
+      onClose();
+    } catch (err) {
+      // Error handled by context
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (!open) return null;
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4"
+      onClick={onClose}
+    >
+      <div
+        className="bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 rounded-t-xl">
+          <div className="flex items-center justify-between">
+            <h2 className="text-xl font-bold text-gray-900">Create Work Order</h2>
+            <button
+              onClick={onClose}
+              className="text-gray-400 hover:text-gray-600 transition-colors p-1"
+            >
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+        </div>
+
+        <div className="p-6">
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Customer</label>
+                <select
+                  name="customer_id"
+                  value={form.customer_id}
+                  onChange={(e) => {
+                    setForm(prev => ({
+                      ...prev,
+                      customer_id: parseInt(e.target.value) || 0,
+                    }));
+                  }}
+                  required
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                >
+                  <option value="">Select Customer</option>
+                  {customers && customers.map(c => (
+                    <option key={c.id} value={c.id}>{c.name}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Job Type</label>
+                <input
+                  name="job_type"
+                  value={form.job_type}
+                  onChange={handleChange}
+                  required
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                  placeholder="e.g., Maintenance, Repair, Installation"
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
+              <textarea
+                name="description"
+                value={form.description}
+                onChange={handleChange}
+                required
+                rows={3}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors resize-none"
+                placeholder="Describe the work to be performed..."
+              />
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
+                <select
+                  name="status"
+                  value={form.status}
+                  onChange={handleChange}
+                  required
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                >
+                  {statusOptions.map(opt => (
+                    <option key={opt} value={opt}>{opt.replace('_', ' ')}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Priority</label>
+                <select
+                  name="priority"
+                  value={form.priority}
+                  onChange={handleChange}
+                  required
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                >
+                  {priorityOptions.map(opt => (
+                    <option key={opt} value={opt}>{opt}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Tags (comma separated)</label>
+              <input
+                name="tags"
+                value={form.tags}
+                onChange={handleChange}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                placeholder="e.g., System: 1yr old, SEER: 20, R-410A"
+              />
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Scheduled For</label>
+                <input
+                  type="datetime-local"
+                  name="scheduled_for"
+                  value={form.scheduled_for}
+                  onChange={handleChange}
+                  required
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Assigned To</label>
+                <select
+                  name="assigned_to"
+                  value={form.assigned_to}
+                  onChange={handleChange}
+                  required
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                >
+                  <option value="">Select Team Member</option>
+                  {teamMembers && teamMembers.map(tm => (
+                    <option key={tm.id} value={tm.id}>{tm.first_name} {tm.last_name} ({tm.username})</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Progress Current</label>
+                <input
+                  type="number"
+                  name="progress_current"
+                  value={form.progress_current}
+                  onChange={handleChange}
+                  required
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                  min="0"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Progress Total</label>
+                <input
+                  type="number"
+                  name="progress_total"
+                  value={form.progress_total}
+                  onChange={handleChange}
+                  required
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                  min="1"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Amount ($)</label>
+                <input
+                  type="number"
+                  name="amount"
+                  value={form.amount}
+                  onChange={handleChange}
+                  required
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                  step="0.01"
+                  min="0"
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Address</label>
+              <input
+                name="address"
+                value={form.address}
+                onChange={handleChange}
+                required
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                placeholder="Full address of the job location"
+              />
+            </div>
+          </form>
+        </div>
+
+        <div className="sticky bottom-0 bg-white border-t border-gray-200 px-6 py-4 rounded-b-xl">
+          <div className="flex justify-end space-x-3">
+            <button
+              type="button"
+              onClick={onClose}
+              className="px-4 py-2 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              onClick={handleSubmit}
+              disabled={loading}
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            >
+              {loading ? 'Creating...' : 'Create Work Order'}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
 
 const JobsList: React.FC<JobsListProps> = ({ onNewJob }) => {
   const [searchTerm, setSearchTerm] = useState('');
@@ -95,7 +406,8 @@ const JobsList: React.FC<JobsListProps> = ({ onNewJob }) => {
     }
   };
 
-  const { user } = useAuth();
+  const { user, createWorkOrder } = useAuth();
+  const [dialogOpen, setDialogOpen] = useState(false);
 
   const capitalize = (str: any) => {
     if (!str) return '';
@@ -114,13 +426,14 @@ const JobsList: React.FC<JobsListProps> = ({ onNewJob }) => {
         </div>
 
         <button
-          onClick={onNewJob}
+          onClick={() => setDialogOpen(true)}
           className="flex items-center justify-center space-x-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 w-full sm:w-auto"
         >
           <Plus size={16} />
           <span>New {capitalize(user?.primary_trade)} Job</span>
         </button>
       </div>
+      <NewJobDialog open={dialogOpen} onClose={() => setDialogOpen(false)} onSubmit={createWorkOrder} />
 
       {/* Filters */}
       <div className="bg-white rounded-lg p-4 mb-4 lg:mb-6 shadow-sm border border-slate-200">

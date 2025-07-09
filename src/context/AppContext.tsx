@@ -81,6 +81,8 @@ interface AuthContextType {
   getCustomers: () => Promise<void>;
   getTeamMembers: () => Promise<void>;
   logout: () => void;
+  // Work Orders
+  createWorkOrder: (form: any) => Promise<any>;
 }
 
 export const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -220,6 +222,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       const data = await response.json();
       setTeamMembers(data);
       console.log("Team members fetched:", data && Array.isArray(data) ? data.length : 0);
+      console.log("Team members:", data);
 
     } catch (error) {
       console.error('Error fetching team members:', error);
@@ -535,6 +538,34 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
+  // Work Orders Function
+  const createWorkOrder = async (form: any) => {
+    const token = getToken();
+    try {
+      const response = await fetch(`${import.meta.env.VITE_BASE_URL}/work-orders/`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Token ${token}`
+        },
+        body: JSON.stringify(form)
+      });
+      if (!response.ok) {
+        const errorDetails = await response.text();
+        throw new Error(`Error creating work order: ${errorDetails}`);
+      }
+      const data = await response.json();
+      setToastMessage('Work order created successfully!');
+      setToastType('success');
+      return data;
+    } catch (error) {
+      console.error('createWorkOrder error:', error);
+      setToastMessage(`Couldn't create work order: ${error}`);
+      setToastType('error');
+      throw error;
+    }
+  };
+
   useEffect(() => {
     const initialize = async () => {
       await fetchUserProfile();
@@ -576,7 +607,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       sendTeamInvite,
       teamMembers,
       getTeamMembers,
-      logout
+      logout,
+      // Work Orders
+      createWorkOrder,
     }}>
       {children}
     </AuthContext.Provider>

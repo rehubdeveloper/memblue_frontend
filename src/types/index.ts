@@ -39,6 +39,7 @@ export interface Business {
 // types/customer.ts
 export interface CustomerFormData {
   id: any;
+  customer_id: number;
   name: string;
   email: string;
   phone: string;

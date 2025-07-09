@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import { tradeConfigs } from '../../data/tradeConfigs';
 import { mockBusiness } from '../../data/mockData';
+import { useAuth } from '../../context/AppContext';
 
 interface SidebarProps {
   currentUser: any;
@@ -27,6 +28,7 @@ const Sidebar: React.FC<SidebarProps> = ({ currentUser }) => {
   const tradeConfig = tradeConfigs[mockBusiness.primaryTrade];
   const navigate = useNavigate();
   const location = useLocation();
+  const { user } = useAuth();
 
   const adminMenuItems = [
     { id: 'dashboard', label: 'Dashboard', icon: Home, route: '/dashboard' },
@@ -89,7 +91,8 @@ const Sidebar: React.FC<SidebarProps> = ({ currentUser }) => {
 
       {/* Sidebar */}
       <div className={`
-        bg-slate-900 text-white overflow-y-auto w-64 min-h-screen p-4 fixed lg:relative z-50
+        bg-slate-900 text-white w-64 min-h-screen p-4 fixed lg:relative z-50
+        flex flex-col h-screen overflow-y-auto
         transform transition-transform duration-300 ease-in-out
         ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
       `}>
@@ -152,6 +155,18 @@ const Sidebar: React.FC<SidebarProps> = ({ currentUser }) => {
               </button>
             );
           })}
+          {(user?.role === 'admin' || user?.role === 'solo') && (
+            <button
+              onClick={() => handleMenuItemClick('/work-orders')}
+              className={`w-full flex items-center space-x-3 px-3 py-3 rounded-lg text-left transition-colors ${location.pathname === '/work-orders'
+                ? 'bg-blue-600 text-white'
+                : 'text-slate-300 hover:bg-slate-800 hover:text-white'
+                }`}
+            >
+              <ClipboardList size={20} className="flex-shrink-0" />
+              <span className="truncate">Work Orders</span>
+            </button>
+          )}
         </nav>
 
         {/* Memphis Pride Footer */}
