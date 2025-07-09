@@ -34,6 +34,7 @@ const DashboardOverview = () => {
           throw new Error('Failed to fetch dashboard metrics');
         }
         const data = await res.json();
+        console.log(data);
         setDashboard(data);
       } catch (err: any) {
         setError(err.message || 'Unknown error');
@@ -172,6 +173,43 @@ const DashboardOverview = () => {
     }
   ];
 
+  // Handle new alerts format (object with keys)
+  let alertCards: JSX.Element[] = [];
+  if (alerts && typeof alerts === 'object' && !Array.isArray(alerts)) {
+    if (alerts.low_inventory > 0) {
+      alertCards.push(
+        <div key="low-inventory" className="flex items-start space-x-3 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+          <AlertTriangle className="text-yellow-500 mt-1 flex-shrink-0" size={16} />
+          <div className="min-w-0 flex-1">
+            <p className="font-medium text-yellow-900 text-sm lg:text-base">Low Inventory</p>
+            <p className="text-xs lg:text-sm text-yellow-700">{alerts.low_inventory} item(s) are low in inventory</p>
+          </div>
+        </div>
+      );
+    }
+    if (alerts.urgent_jobs > 0) {
+      alertCards.push(
+        <div key="urgent-jobs" className="flex items-start space-x-3 p-3 bg-red-50 border border-red-200 rounded-lg">
+          <AlertTriangle className="text-red-500 mt-1 flex-shrink-0" size={16} />
+          <div className="min-w-0 flex-1">
+            <p className="font-medium text-red-900 text-sm lg:text-base">Urgent Jobs</p>
+            <p className="text-xs lg:text-sm text-red-700">{alerts.urgent_jobs} urgent job(s) need attention</p>
+          </div>
+        </div>
+      );
+    }
+  } else if (Array.isArray(alerts)) {
+    alertCards = alerts.map((alert: string, idx: number) => (
+      <div key={idx} className="flex items-start space-x-3 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+        <AlertTriangle className="text-yellow-500 mt-1 flex-shrink-0" size={16} />
+        <div className="min-w-0 flex-1">
+          <p className="font-medium text-yellow-900 text-sm lg:text-base">Alert</p>
+          <p className="text-xs lg:text-sm text-yellow-700">{alert ?? '-'}</p>
+        </div>
+      </div>
+    ));
+  }
+
   return (
     <div className="p-4 lg:p-6">
       <div className="mb-6 lg:mb-8">
@@ -248,16 +286,8 @@ const DashboardOverview = () => {
       <div className="bg-white rounded-lg p-4 lg:p-6 shadow-sm border border-slate-200">
         <h3 className="text-base lg:text-lg font-semibold text-slate-900 mb-4">Alerts & Trade Insights</h3>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {alerts && alerts.length > 0 ? (
-            alerts.map((alert: string, idx: number) => (
-              <div key={idx} className="flex items-start space-x-3 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
-                <AlertTriangle className="text-yellow-500 mt-1 flex-shrink-0" size={16} />
-                <div className="min-w-0 flex-1">
-                  <p className="font-medium text-yellow-900 text-sm lg:text-base">Alert</p>
-                  <p className="text-xs lg:text-sm text-yellow-700">{alert ?? '-'}</p>
-                </div>
-              </div>
-            ))
+          {alertCards.length > 0 ? (
+            alertCards
           ) : (
             <div className="text-slate-500 text-center py-4 text-sm lg:text-base">No alerts</div>
           )}
