@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Plus, Search, Phone, Mail, MapPin, Tag, Calendar, Home, Building, Users as UsersIcon, Edit, Trash2 } from 'lucide-react';
 import { mockCustomers, mockBusiness } from '../../data/mockData';
 import { tradeConfigs } from '../../data/tradeConfigs';
@@ -13,7 +13,13 @@ const CustomersList = () => {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState<number | null>(null);
   const [isSaving, setIsSaving] = useState(false);
 
-  const { customers, user, createCustomer, updateCustomer, deleteCustomer } = useAuth();
+  const { customers, user, createCustomer, updateCustomer, deleteCustomer, getCustomers } = useAuth();
+
+  useEffect(() => {
+    if (!customers || customers.length === 0) {
+      getCustomers && getCustomers();
+    }
+  }, []);
 
   const tradeConfig = tradeConfigs[mockBusiness.primaryTrade];
 

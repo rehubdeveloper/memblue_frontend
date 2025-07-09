@@ -78,6 +78,7 @@ interface AuthContextType {
   // Team functions
   sendTeamInvite: () => Promise<string>;
   teamMembers: TeamMember[] | null;
+  getCustomers: () => Promise<void>;
   getTeamMembers: () => Promise<void>;
   logout: () => void;
 }
@@ -552,6 +553,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   return (
     <AuthContext.Provider value={{
       user,
+      getCustomers,
       isLoading,
       refetchProfile: fetchUserProfile,
       createInventory,
