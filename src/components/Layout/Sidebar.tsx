@@ -155,18 +155,6 @@ const Sidebar: React.FC<SidebarProps> = ({ currentUser }) => {
               </button>
             );
           })}
-          {(user?.role === 'admin' || user?.role === 'solo') && (
-            <button
-              onClick={() => handleMenuItemClick('/work-orders')}
-              className={`w-full flex items-center space-x-3 px-3 py-3 rounded-lg text-left transition-colors ${location.pathname === '/work-orders'
-                ? 'bg-blue-600 text-white'
-                : 'text-slate-300 hover:bg-slate-800 hover:text-white'
-                }`}
-            >
-              <ClipboardList size={20} className="flex-shrink-0" />
-              <span className="truncate">Work Orders</span>
-            </button>
-          )}
         </nav>
 
         {/* Memphis Pride Footer */}

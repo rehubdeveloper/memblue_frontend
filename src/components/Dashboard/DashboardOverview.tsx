@@ -31,6 +31,24 @@ const DashboardOverview = () => {
           },
         });
         if (!res.ok) {
+          if (res.status === 403) {
+            // For solo operators, create a fallback dashboard
+            setDashboard({
+              jobs_today: 0,
+              jobs_today_change: 0,
+              revenue_this_month: '0.00',
+              revenue_change_percent: 0,
+              active_customers: 0,
+              customers_with_open_jobs: 0,
+              new_customers_this_week: 0,
+              open_jobs: 0,
+              overdue_jobs: 0,
+              todays_schedule: [],
+              alerts: []
+            });
+            setLoading(false);
+            return;
+          }
           throw new Error('Failed to fetch dashboard metrics');
         }
         const data = await res.json();
