@@ -537,15 +537,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   useEffect(() => {
     const initialize = async () => {
       await fetchUserProfile();
-      if (inventoryList == null) {
-        await getInventory();
-      }
-      if (customers == null) {
-        await getCustomers();
-      }
-      if (teamMembers == null) {
-        await getTeamMembers();
-      }
+
+      await getInventory();
+
+      await getCustomers();
+
+
+      await getTeamMembers();
+
     };
     initialize();
   }, []);

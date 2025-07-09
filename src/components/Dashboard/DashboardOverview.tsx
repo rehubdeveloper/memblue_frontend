@@ -1,59 +1,175 @@
-import React, { useContext } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Calendar, DollarSign, Users, ClipboardList, AlertTriangle, TrendingUp, Wrench, MapPin } from 'lucide-react';
-import { mockJobs, mockCustomers, mockInventory, mockBusiness } from '../../data/mockData';
+// import { mockJobs, mockCustomers, mockInventory, mockBusiness } from '../../data/mockData';
 import { tradeConfigs } from '../../data/tradeConfigs';
 import { useAuth } from '../../context/AppContext';
+import Cookies from 'js-cookie';
+
+const getToken = () => Cookies.get('token') || localStorage.getItem('token');
 
 const DashboardOverview = () => {
-  const tradeConfig = tradeConfigs[mockBusiness.primaryTrade];
-  const { user } = useAuth()
+  const { user } = useAuth();
+  const [dashboard, setDashboard] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  const todayJobs = mockJobs.filter(job => {
-    const today = new Date();
-    const jobDate = new Date(job.scheduledTime);
-    return jobDate.toDateString() === today.toDateString();
-  });
+  useEffect(() => {
+    const fetchDashboard = async () => {
+      setLoading(true);
+      setError(null);
+      const token = getToken();
+      if (!token) {
+        setError('No authentication token found');
+        setLoading(false);
+        return;
+      }
+      try {
+        const res = await fetch(`${import.meta.env.VITE_BASE_URL}/team/admin-dashboard/`, {
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Token ${token}`,
+          },
+        });
+        if (!res.ok) {
+          throw new Error('Failed to fetch dashboard metrics');
+        }
+        const data = await res.json();
+        setDashboard(data);
+      } catch (err: any) {
+        setError(err.message || 'Unknown error');
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchDashboard();
+  }, []);
 
-  const urgentJobs = mockJobs.filter(job => job.priority === 'urgent');
-  const lowStockItems = mockInventory.filter(item => item.stockLevel <= item.reorderThreshold);
-  const totalRevenue = mockCustomers.reduce((sum, customer) => sum + customer.totalRevenue, 0);
+  // Use a safe fallback for tradeConfig
+  const tradeConfig = tradeConfigs[user?.primary_trade as keyof typeof tradeConfigs] || { color: 'bg-blue-500', icon: null, name: '' };
+
+  // Defensive fallback for all dashboard fields
+  const jobsToday = dashboard?.jobs_today ?? 0;
+  const jobsTodayChange = dashboard?.jobs_today_change ?? 0;
+  const revenueThisMonth = dashboard?.revenue_this_month ?? '0.00';
+  const revenueChangePercent = dashboard?.revenue_change_percent ?? 0;
+  const activeCustomers = dashboard?.active_customers ?? 0;
+  const customersWithOpenJobs = dashboard?.customers_with_open_jobs ?? 0;
+  const newCustomersThisWeek = dashboard?.new_customers_this_week ?? 0;
+  const openJobs = dashboard?.open_jobs ?? 0;
+  const overdueJobs = dashboard?.overdue_jobs ?? 0;
+  const todaysSchedule = dashboard?.todays_schedule ?? [];
+  const alerts = dashboard?.alerts ?? [];
+
+  if (loading) return (
+    <div className="p-4 lg:p-6 animate-pulse">
+      <div className="mb-6 lg:mb-8">
+        <div className="flex items-center space-x-3 mb-2">
+          <div className="h-8 w-8 bg-slate-200 rounded-full" />
+          <div className="h-6 w-40 bg-slate-200 rounded" />
+        </div>
+        <div className="h-4 w-64 bg-slate-200 rounded mb-2" />
+      </div>
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-6 mb-6 lg:mb-8">
+        {[...Array(4)].map((_, i) => (
+          <div key={i} className="bg-white rounded-lg p-4 lg:p-6 shadow-sm border border-slate-200">
+            <div className="flex items-center justify-between mb-3 lg:mb-4">
+              <div className="h-8 w-8 bg-slate-200 rounded-lg" />
+              <div className="h-4 w-8 bg-slate-200 rounded" />
+            </div>
+            <div>
+              <div className="h-6 w-16 bg-slate-200 rounded mb-1" />
+              <div className="h-4 w-20 bg-slate-200 rounded mb-2" />
+              <div className="h-3 w-12 bg-slate-200 rounded" />
+            </div>
+          </div>
+        ))}
+      </div>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 lg:gap-6 mb-6 lg:mb-8">
+        {[...Array(2)].map((_, i) => (
+          <div key={i} className="bg-white rounded-lg p-4 lg:p-6 shadow-sm border border-slate-200">
+            <div className="h-5 w-32 bg-slate-200 rounded mb-4" />
+            <div className="space-y-3">
+              {[...Array(3)].map((_, j) => (
+                <div key={j} className="flex items-center justify-between p-3 bg-slate-50 rounded-lg">
+                  <div className="flex items-center space-x-3 min-w-0 flex-1">
+                    <div className="h-6 w-6 bg-slate-200 rounded-full" />
+                    <div className="min-w-0 flex-1">
+                      <div className="h-4 w-24 bg-slate-200 rounded mb-1" />
+                      <div className="h-3 w-20 bg-slate-200 rounded" />
+                    </div>
+                  </div>
+                  <div className="text-right flex-shrink-0">
+                    <div className="h-4 w-10 bg-slate-200 rounded mb-1" />
+                    <div className="h-3 w-12 bg-slate-200 rounded" />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
+      <div className="bg-white rounded-lg p-4 lg:p-6 shadow-sm border border-slate-200">
+        <div className="h-5 w-40 bg-slate-200 rounded mb-4" />
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {[...Array(3)].map((_, i) => (
+            <div key={i} className="flex items-start space-x-3 p-3 bg-slate-50 border border-slate-200 rounded-lg">
+              <div className="h-6 w-6 bg-slate-200 rounded-full mt-1 flex-shrink-0" />
+              <div className="min-w-0 flex-1">
+                <div className="h-4 w-24 bg-slate-200 rounded mb-1" />
+                <div className="h-3 w-32 bg-slate-200 rounded" />
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+  if (error) return <div className="p-6 text-red-600">Error: {error}</div>;
+  if (!dashboard) return <div className="p-6">No dashboard data available.</div>;
 
   const stats = [
     {
       title: "Today's Jobs",
-      value: todayJobs.length,
+      value: jobsToday,
       icon: Calendar,
       color: tradeConfig.color,
-      change: '+2 from yesterday'
+      change: jobsTodayChange > 0 ? `+${jobsTodayChange} from yesterday` : `${jobsTodayChange} from yesterday`
     },
     {
       title: 'Total Revenue',
-      value: `$${totalRevenue.toLocaleString()}`,
+      value: `$${Number(revenueThisMonth).toLocaleString()}`,
       icon: DollarSign,
       color: 'bg-green-500',
-      change: '+12% this month'
+      change: `${revenueChangePercent > 0 ? '+' : ''}${revenueChangePercent}% this month`
     },
     {
       title: 'Active Customers',
-      value: mockCustomers.length,
+      value: activeCustomers,
       icon: Users,
       color: 'bg-purple-500',
-      change: '+3 this week'
+      change: `+${newCustomersThisWeek} this week`
     },
     {
       title: 'Open Jobs',
-      value: mockJobs.filter(job => job.status !== 'completed').length,
+      value: openJobs,
       icon: ClipboardList,
       color: 'bg-orange-500',
-      change: '2 overdue'
+      change: `${overdueJobs} overdue`
+    },
+    {
+      title: 'Customers with Open Jobs',
+      value: customersWithOpenJobs,
+      icon: Users,
+      color: 'bg-blue-500',
+      change: ''
+    },
+    {
+      title: 'New Customers This Week',
+      value: newCustomersThisWeek,
+      icon: Users,
+      color: 'bg-indigo-500',
+      change: ''
     }
-  ];
-
-  const memphisAreas = [
-    { name: 'Midtown', jobs: 8, revenue: 4200 },
-    { name: 'Downtown', jobs: 12, revenue: 8900 },
-    { name: 'Germantown', jobs: 6, revenue: 5600 },
-    { name: 'East Memphis', jobs: 4, revenue: 2800 }
   ];
 
   return (
@@ -67,7 +183,7 @@ const DashboardOverview = () => {
       </div>
 
       {/* Stats Grid */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-6 mb-6 lg:mb-8">
+      <div className="grid grid-cols-2 lg:grid-cols-4 xl:grid-cols-6 gap-3 lg:gap-6 mb-6 lg:mb-8">
         {stats.map((stat, index) => {
           const Icon = stat.icon;
           return (
@@ -79,9 +195,9 @@ const DashboardOverview = () => {
                 <TrendingUp className="text-green-500" size={14} />
               </div>
               <div>
-                <p className="text-lg lg:text-2xl font-bold text-slate-900 mb-1">{stat.value}</p>
+                <p className="text-lg lg:text-2xl font-bold text-slate-900 mb-1">{stat.value ?? '-'}</p>
                 <p className="text-xs lg:text-sm text-slate-600 mb-1 lg:mb-2">{stat.title}</p>
-                <p className="text-xs text-green-600">{stat.change}</p>
+                {stat.change && <p className="text-xs text-green-600">{stat.change}</p>}
               </div>
             </div>
           );
@@ -93,25 +209,22 @@ const DashboardOverview = () => {
         <div className="bg-white rounded-lg p-4 lg:p-6 shadow-sm border border-slate-200">
           <h3 className="text-base lg:text-lg font-semibold text-slate-900 mb-4">Today's Schedule</h3>
           <div className="space-y-3">
-            {todayJobs.length > 0 ? (
-              todayJobs.slice(0, 4).map((job) => (
-                <div key={job.id} className="flex items-center justify-between p-3 bg-slate-50 rounded-lg">
+            {todaysSchedule.length > 0 ? (
+              todaysSchedule.slice(0, 4).map((job: any, idx: number) => (
+                <div key={idx} className="flex items-center justify-between p-3 bg-slate-50 rounded-lg">
                   <div className="flex items-center space-x-3 min-w-0 flex-1">
                     <span className="text-base lg:text-lg">{tradeConfig.icon}</span>
                     <div className="min-w-0 flex-1">
-                      <p className="font-medium text-slate-900 text-sm lg:text-base truncate">{job.jobType}</p>
-                      <p className="text-xs lg:text-sm text-slate-600 truncate">{job.location}</p>
+                      <p className="font-medium text-slate-900 text-sm lg:text-base truncate">{job.title ?? '-'}</p>
+                      <p className="text-xs lg:text-sm text-slate-600 truncate">{job.address ?? '-'}</p>
                     </div>
                   </div>
                   <div className="text-right flex-shrink-0">
                     <p className="text-xs lg:text-sm font-medium text-slate-900">
-                      {new Date(job.scheduledTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                      {job.scheduled_for ? new Date(job.scheduled_for).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '-'}
                     </p>
-                    <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${job.status === 'confirmed' ? 'bg-green-100 text-green-800' :
-                      job.status === 'in-progress' ? 'bg-blue-100 text-blue-800' :
-                        'bg-yellow-100 text-yellow-800'
-                      }`}>
-                      {job.status.replace('-', ' ')}
+                    <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${job.status === 'in_progress' ? 'bg-blue-100 text-blue-800' : job.status === 'pending' ? 'bg-yellow-100 text-yellow-800' : 'bg-green-100 text-green-800'}`}>
+                      {job.status ? job.status.replace('_', ' ') : '-'}
                     </span>
                   </div>
                 </div>
@@ -122,25 +235,11 @@ const DashboardOverview = () => {
           </div>
         </div>
 
-        {/* Memphis Service Areas */}
+        {/* Memphis Service Areas - Placeholder, since not in backend response */}
         <div className="bg-white rounded-lg p-4 lg:p-6 shadow-sm border border-slate-200">
           <h3 className="text-base lg:text-lg font-semibold text-slate-900 mb-4">Memphis Service Areas</h3>
           <div className="space-y-3">
-            {memphisAreas.map((area, index) => (
-              <div key={index} className="flex items-center justify-between p-3 bg-slate-50 rounded-lg">
-                <div className="flex items-center space-x-3 min-w-0 flex-1">
-                  <MapPin className="text-blue-500 flex-shrink-0" size={16} />
-                  <div className="min-w-0 flex-1">
-                    <p className="font-medium text-slate-900 text-sm lg:text-base">{area.name}</p>
-                    <p className="text-xs lg:text-sm text-slate-600">{area.jobs} active jobs</p>
-                  </div>
-                </div>
-                <div className="text-right flex-shrink-0">
-                  <p className="font-semibold text-slate-900 text-sm lg:text-base">${area.revenue.toLocaleString()}</p>
-                  <p className="text-xs lg:text-sm text-slate-600">this month</p>
-                </div>
-              </div>
-            ))}
+            <div className="text-slate-500 text-center py-4 text-sm lg:text-base">Service area data not available</div>
           </div>
         </div>
       </div>
@@ -149,31 +248,25 @@ const DashboardOverview = () => {
       <div className="bg-white rounded-lg p-4 lg:p-6 shadow-sm border border-slate-200">
         <h3 className="text-base lg:text-lg font-semibold text-slate-900 mb-4">Alerts & Trade Insights</h3>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {urgentJobs.length > 0 && (
-            <div className="flex items-start space-x-3 p-3 bg-red-50 border border-red-200 rounded-lg">
-              <AlertTriangle className="text-red-500 mt-1 flex-shrink-0\" size={16} />
-              <div className="min-w-0 flex-1">
-                <p className="font-medium text-red-900 text-sm lg:text-base">Urgent Jobs</p>
-                <p className="text-xs lg:text-sm text-red-700">{urgentJobs.length} job(s) need immediate attention</p>
+          {alerts && alerts.length > 0 ? (
+            alerts.map((alert: string, idx: number) => (
+              <div key={idx} className="flex items-start space-x-3 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+                <AlertTriangle className="text-yellow-500 mt-1 flex-shrink-0" size={16} />
+                <div className="min-w-0 flex-1">
+                  <p className="font-medium text-yellow-900 text-sm lg:text-base">Alert</p>
+                  <p className="text-xs lg:text-sm text-yellow-700">{alert ?? '-'}</p>
+                </div>
               </div>
-            </div>
+            ))
+          ) : (
+            <div className="text-slate-500 text-center py-4 text-sm lg:text-base">No alerts</div>
           )}
-
-          {lowStockItems.length > 0 && (
-            <div className="flex items-start space-x-3 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
-              <AlertTriangle className="text-yellow-500 mt-1 flex-shrink-0" size={16} />
-              <div className="min-w-0 flex-1">
-                <p className="font-medium text-yellow-900 text-sm lg:text-base">Low Inventory</p>
-                <p className="text-xs lg:text-sm text-yellow-700">{lowStockItems.length} {tradeConfig.name} item(s) need reordering</p>
-              </div>
-            </div>
-          )}
-
+          {/* Example of a static trade insight */}
           <div className="flex items-start space-x-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
             <Wrench className="text-blue-500 mt-1 flex-shrink-0" size={16} />
             <div className="min-w-0 flex-1">
               <p className="font-medium text-blue-900 text-sm lg:text-base">Seasonal Reminder</p>
-              <p className="text-xs lg:text-sm text-blue-700">3 customers due for {tradeConfig.name.toLowerCase()} maintenance</p>
+              <p className="text-xs lg:text-sm text-blue-700">{customersWithOpenJobs} customers due for maintenance</p>
             </div>
           </div>
         </div>
