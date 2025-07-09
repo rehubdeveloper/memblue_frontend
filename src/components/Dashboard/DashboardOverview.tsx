@@ -34,7 +34,6 @@ const DashboardOverview = () => {
           throw new Error('Failed to fetch dashboard metrics');
         }
         const data = await res.json();
-        console.log(data);
         setDashboard(data);
       } catch (err: any) {
         setError(err.message || 'Unknown error');

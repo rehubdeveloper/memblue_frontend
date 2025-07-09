@@ -139,7 +139,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       }
 
       const data = await response.json();
-      console.log("Profile Fetched!", data);
+      console.log("Profile Fetched!");
 
       setUser(data);
     } catch (error) {
