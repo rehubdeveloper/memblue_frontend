@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Plus, Search, Filter, MapPin, Clock, User, Phone, Wrench } from 'lucide-react';
 import { mockJobs, mockCustomers, mockUsers, mockBusiness } from '../../data/mockData';
 import { tradeConfigs } from '../../data/tradeConfigs';
@@ -324,22 +324,31 @@ const JobsList: React.FC<JobsListProps> = ({ onNewJob }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [priorityFilter, setPriorityFilter] = useState<string>('all');
+  const { workOrders, getWorkOrders, user, createWorkOrder } = useAuth();
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [detailsJob, setDetailsJob] = useState<null | any>(null);
 
-  const tradeConfig = tradeConfigs[mockBusiness.primaryTrade];
+  useEffect(() => {
+    getWorkOrders();
+  }, []);
 
-  const filteredJobs = mockJobs.filter(job => {
-    const customer = mockCustomers.find(c => c.id === job.customerId);
-    const matchesSearch = job.jobType.toLowerCase().includes(searchTerm.toLowerCase()) ||
+  const tradeConfig = tradeConfigs[user?.primary_trade || 'hvac'] || tradeConfigs['hvac'];
+
+  const filteredJobs = (workOrders || []).filter(job => {
+    const matchesSearch = job.job_type.toLowerCase().includes(searchTerm.toLowerCase()) ||
       job.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      customer?.name.toLowerCase().includes(searchTerm.toLowerCase());
-
+      (job.customer_name && job.customer_name.toLowerCase().includes(searchTerm.toLowerCase()));
     const matchesStatus = statusFilter === 'all' || job.status === statusFilter;
     const matchesPriority = priorityFilter === 'all' || job.priority === priorityFilter;
-
     return matchesSearch && matchesStatus && matchesPriority;
   });
 
-  const getStatusColor = (status: Job['status']) => {
+  const capitalize = (str: any) => {
+    if (!str) return '';
+    return str.charAt(0).toUpperCase() + str.slice(1).toLowerCase();
+  };
+
+  const getStatusColor = (status: string) => {
     switch (status) {
       case 'pending': return 'bg-yellow-100 text-yellow-800';
       case 'confirmed': return 'bg-green-100 text-green-800';
@@ -351,7 +360,7 @@ const JobsList: React.FC<JobsListProps> = ({ onNewJob }) => {
     }
   };
 
-  const getPriorityColor = (priority: Job['priority']) => {
+  const getPriorityColor = (priority: string) => {
     switch (priority) {
       case 'low': return 'bg-gray-100 text-gray-600';
       case 'medium': return 'bg-blue-100 text-blue-600';
@@ -406,13 +415,13 @@ const JobsList: React.FC<JobsListProps> = ({ onNewJob }) => {
     }
   };
 
-  const { user, createWorkOrder } = useAuth();
-  const [dialogOpen, setDialogOpen] = useState(false);
-
-  const capitalize = (str: any) => {
-    if (!str) return '';
-    return str.charAt(0).toUpperCase() + str.slice(1).toLowerCase();
+  const handleJobCreated = async (payload: any) => {
+    await createWorkOrder(payload);
+    await getWorkOrders();
   };
+
+  const handleViewDetails = (job: any) => setDetailsJob(job);
+  const handleCloseDetails = () => setDetailsJob(null);
 
   return (
     <div className="p-4 lg:p-6">
@@ -433,7 +442,7 @@ const JobsList: React.FC<JobsListProps> = ({ onNewJob }) => {
           <span>New {capitalize(user?.primary_trade)} Job</span>
         </button>
       </div>
-      <NewJobDialog open={dialogOpen} onClose={() => setDialogOpen(false)} onSubmit={createWorkOrder} />
+      <NewJobDialog open={dialogOpen} onClose={() => setDialogOpen(false)} onSubmit={handleJobCreated} />
 
       {/* Filters */}
       <div className="bg-white rounded-lg p-4 mb-4 lg:mb-6 shadow-sm border border-slate-200">
@@ -484,9 +493,9 @@ const JobsList: React.FC<JobsListProps> = ({ onNewJob }) => {
       {/* Jobs Grid */}
       <div className="grid gap-4">
         {filteredJobs.map((job) => {
-          const customer = getCustomerInfo(job.customerId);
-          const technician = getTechnicianInfo(job.assignedUserId);
-          const memphisArea = getMemphisArea(job.location);
+          // const customer = getCustomerInfo(job.customerId); // Remove mock
+          // const technician = getTechnicianInfo(job.assignedUserId); // Remove mock
+          // const memphisArea = getMemphisArea(job.location); // Remove mock
 
           return (
             <div key={job.id} className="bg-white rounded-lg p-4 lg:p-6 shadow-sm border border-slate-200 hover:shadow-md transition-shadow">
@@ -494,7 +503,7 @@ const JobsList: React.FC<JobsListProps> = ({ onNewJob }) => {
                 <div className="flex-1 min-w-0">
                   <div className="flex flex-wrap items-center gap-2 mb-2">
                     <span className="text-lg">{tradeConfig.icon}</span>
-                    <h3 className="text-base lg:text-lg font-semibold text-slate-900">{job.jobType}</h3>
+                    <h3 className="text-base lg:text-lg font-semibold text-slate-900">{job.job_type}</h3>
                     <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${getStatusColor(job.status)}`}>
                       {job.status.replace('-', ' ')}
                     </span>
@@ -503,70 +512,56 @@ const JobsList: React.FC<JobsListProps> = ({ onNewJob }) => {
                     </span>
                   </div>
                   <p className="text-slate-600 mb-3 text-sm lg:text-base">{job.description}</p>
-
-                  {/* Trade-specific data display */}
-                  {renderTradeSpecificData(job)}
+                  {/* Trade-specific data display: skip for now, as real jobs may not have tradeSpecificData */}
                 </div>
-
                 <div className="text-left lg:text-right flex-shrink-0">
-                  <p className="text-sm text-slate-500">Job #{job.id.slice(-6)}</p>
+                  <p className="text-sm text-slate-500">Job #{job.job_number}</p>
                   <p className="text-sm text-slate-500">
-                    Created {new Date(job.createdAt).toLocaleDateString()}
+                    Created {new Date(job.created_at).toLocaleDateString()}
                   </p>
                 </div>
               </div>
-
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
                 <div className="flex items-center space-x-2">
                   <User className="text-slate-400 flex-shrink-0" size={16} />
                   <div className="min-w-0 flex-1">
-                    <p className="font-medium text-slate-900 text-sm lg:text-base truncate">{customer?.name || 'Unknown Customer'}</p>
-                    <p className="text-xs lg:text-sm text-slate-600">{customer?.phone}</p>
-                    {customer?.propertyType && (
-                      <span className="inline-flex px-2 py-1 text-xs bg-slate-100 text-slate-600 rounded-full">
-                        {customer.propertyType}
-                      </span>
-                    )}
+                    <p className="font-medium text-slate-900 text-sm lg:text-base truncate">{job.customer_name || 'Unknown Customer'}</p>
                   </div>
                 </div>
-
                 <div className="flex items-center space-x-2">
                   <MapPin className="text-slate-400 flex-shrink-0" size={16} />
                   <div className="min-w-0 flex-1">
-                    <p className="text-sm text-slate-900">{memphisArea}</p>
-                    <p className="text-xs text-slate-600 truncate">{job.location}</p>
+                    <p className="text-sm text-slate-900">N/A</p>
+                    <p className="text-xs text-slate-600 truncate">N/A</p>
                   </div>
                 </div>
-
                 <div className="flex items-center space-x-2">
                   <Clock className="text-slate-400 flex-shrink-0" size={16} />
                   <div>
                     <p className="text-sm text-slate-900">
-                      {new Date(job.scheduledTime).toLocaleDateString()}
+                      {new Date(job.scheduled_for).toLocaleDateString()}
                     </p>
                     <p className="text-sm text-slate-600">
-                      {new Date(job.scheduledTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                      {new Date(job.scheduled_for).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                     </p>
                   </div>
                 </div>
               </div>
-
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div className="flex items-center space-x-2">
-                  {technician ? (
+                  {job.assigned_to ? (
                     <>
                       <div className="w-6 h-6 bg-blue-500 rounded-full flex items-center justify-center flex-shrink-0">
-                        <span className="text-white text-xs font-semibold">{technician.name.charAt(0)}</span>
+                        <span className="text-white text-xs font-semibold">{typeof job.assigned_to === 'string' ? job.assigned_to.charAt(0) : ''}</span>
                       </div>
-                      <span className="text-sm text-slate-700">Assigned to {technician.name.split(' ')[0]}</span>
+                      <span className="text-sm text-slate-700">Assigned to {job.assigned_to || 'N/A'}</span>
                     </>
                   ) : (
                     <span className="text-sm text-slate-500">Unassigned</span>
                   )}
                 </div>
-
                 <div className="flex flex-col sm:flex-row gap-2">
-                  <button className="text-blue-600 hover:text-blue-800 text-sm font-medium px-3 py-1 rounded border border-blue-200 hover:bg-blue-50">
+                  <button className="text-blue-600 hover:text-blue-800 text-sm font-medium px-3 py-1 rounded border border-blue-200 hover:bg-blue-50" onClick={() => handleViewDetails(job)}>
                     View Details
                   </button>
                   <button className="text-slate-600 hover:text-slate-800 text-sm font-medium px-3 py-1 rounded border border-slate-200 hover:bg-slate-50">
@@ -574,26 +569,23 @@ const JobsList: React.FC<JobsListProps> = ({ onNewJob }) => {
                   </button>
                 </div>
               </div>
-
               {/* Progress Bar */}
-              {job.checklist.length > 0 && (
-                <div className="mt-4 pt-4 border-t border-slate-200">
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-sm text-slate-600">Progress</span>
-                    <span className="text-sm text-slate-600">
-                      {job.checklist.filter(item => item.completed).length} / {job.checklist.length} tasks
-                    </span>
-                  </div>
-                  <div className="w-full bg-slate-200 rounded-full h-2">
-                    <div
-                      className="bg-blue-600 h-2 rounded-full transition-all"
-                      style={{
-                        width: `${(job.checklist.filter(item => item.completed).length / job.checklist.length) * 100}%`
-                      }}
-                    ></div>
-                  </div>
+              <div className="mt-4 pt-4 border-t border-slate-200">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-sm text-slate-600">Progress</span>
+                  <span className="text-sm text-slate-600">
+                    {job.progress_total ? `${job.progress_current} / ${job.progress_total} tasks` : '0 / 0 tasks'}
+                  </span>
                 </div>
-              )}
+                <div className="w-full bg-slate-200 rounded-full h-2">
+                  <div
+                    className="bg-blue-600 h-2 rounded-full transition-all"
+                    style={{
+                      width: `${(job.progress_total ? (job.progress_current / job.progress_total) * 100 : 0)}%`
+                    }}
+                  ></div>
+                </div>
+              </div>
             </div>
           );
         })}
@@ -602,8 +594,29 @@ const JobsList: React.FC<JobsListProps> = ({ onNewJob }) => {
       {filteredJobs.length === 0 && (
         <div className="text-center py-12">
           <Wrench className="mx-auto text-slate-400 mb-4" size={48} />
-          <p className="text-slate-500 text-lg mb-4">No {tradeConfig.name.toLowerCase()} work orders found</p>
+          <p className="text-slate-500 text-lg mb-4">No {tradeConfig.name?.toLowerCase()} work orders found</p>
           <p className="text-slate-400">Try adjusting your search or filter criteria</p>
+        </div>
+      )}
+
+      {/* Job Details Modal */}
+      {detailsJob && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4" onClick={handleCloseDetails}>
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto relative" onClick={e => e.stopPropagation()}>
+            <button onClick={handleCloseDetails} className="absolute top-2 right-2 text-gray-400 hover:text-gray-600 transition-colors p-1">&times;</button>
+            <div className="p-6">
+              <h2 className="text-xl font-bold mb-2">{detailsJob.job_type} ({detailsJob.job_number})</h2>
+              <p className="mb-2 text-gray-700">{detailsJob.description}</p>
+              <div className="mb-2"><span className="font-semibold">Status:</span> {detailsJob.status}</div>
+              <div className="mb-2"><span className="font-semibold">Priority:</span> {detailsJob.priority}</div>
+              <div className="mb-2"><span className="font-semibold">Customer:</span> {detailsJob.customer_name}</div>
+              <div className="mb-2"><span className="font-semibold">Scheduled For:</span> {new Date(detailsJob.scheduled_for).toLocaleString()}</div>
+              <div className="mb-2"><span className="font-semibold">Created At:</span> {new Date(detailsJob.created_at).toLocaleString()}</div>
+              <div className="mb-2"><span className="font-semibold">Progress:</span> {detailsJob.progress_current} / {detailsJob.progress_total}</div>
+              <div className="mb-2"><span className="font-semibold">Amount:</span> ${detailsJob.amount}</div>
+              <div className="mb-2"><span className="font-semibold">Tags:</span> {detailsJob.tags && detailsJob.tags.join(', ')}</div>
+            </div>
+          </div>
         </div>
       )}
     </div>

@@ -53,6 +53,25 @@ interface TeamMember {
   role: string
 }
 
+interface WorkOrder {
+  id: number;
+  job_number: string;
+  job_type: string;
+  description: string;
+  status: string;
+  priority: string;
+  tags: string[];
+  customer: number;
+  customer_name: string;
+  created_at: string;
+  scheduled_for: string;
+  assigned_to: string | number;
+  progress_current: number;
+  progress_total: number;
+  primary_trade: string;
+  amount: string;
+  owner: number;
+}
 
 
 interface AuthContextType {
@@ -83,6 +102,8 @@ interface AuthContextType {
   logout: () => void;
   // Work Orders
   createWorkOrder: (form: any) => Promise<any>;
+  workOrders: WorkOrder[] | null;
+  getWorkOrders: () => Promise<void>;
 }
 
 export const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -95,6 +116,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [toastType, setToastType] = useState<string>("")
   const [customers, setCustomers] = useState<CustomerFormData[] | null>(null)
   const [teamMembers, setTeamMembers] = useState<TeamMember[] | null>(null);
+  const [workOrders, setWorkOrders] = useState<WorkOrder[] | null>(null);
 
   const [toastQueue, setToastQueue] = useState<Toast[]>([]);
 
@@ -566,6 +588,32 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
+  const getWorkOrders = async () => {
+    const token = getToken();
+    try {
+      const response = await fetch(`${import.meta.env.VITE_BASE_URL}/work-orders/`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Token ${token}`
+        },
+      });
+      if (!response.ok) {
+        const errorDetails = await response.text();
+        throw new Error(`Error fetching work orders: ${errorDetails}`);
+      }
+      const data = await response.json();
+      setWorkOrders(data);
+      return data;
+    } catch (error) {
+      console.error('getWorkOrders error:', error);
+      setToastMessage(`Error Fetching Work Orders: ${error}`);
+      setToastType('error');
+      setWorkOrders(null);
+      return null;
+    }
+  };
+
   useEffect(() => {
     const initialize = async () => {
       await fetchUserProfile();
@@ -610,6 +658,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       logout,
       // Work Orders
       createWorkOrder,
+      workOrders,
+      getWorkOrders,
     }}>
       {children}
     </AuthContext.Provider>
