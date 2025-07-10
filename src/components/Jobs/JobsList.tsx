@@ -342,7 +342,7 @@ const JobsList: React.FC<JobsListProps> = ({ onNewJob }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [priorityFilter, setPriorityFilter] = useState<string>('all');
-  const { workOrders, getWorkOrders, user, createWorkOrder, updateWorkOrder, deleteWorkOrder } = useAuth();
+  const { workOrders, getWorkOrders, user, createWorkOrder, updateWorkOrder, deleteWorkOrder, teamMembers, getTeamMembers, customers, getCustomers } = useAuth();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [detailsJob, setDetailsJob] = useState<null | any>(null);
   const [editMode, setEditMode] = useState(false);
@@ -350,6 +350,8 @@ const JobsList: React.FC<JobsListProps> = ({ onNewJob }) => {
 
   useEffect(() => {
     getWorkOrders();
+    getTeamMembers();
+    getCustomers();
   }, []);
 
   const tradeConfig = tradeConfigs[user?.primary_trade || 'hvac'] || tradeConfigs['hvac'];
@@ -608,16 +610,38 @@ const JobsList: React.FC<JobsListProps> = ({ onNewJob }) => {
                 <div className="flex items-center space-x-2">
                   <User className="text-slate-400 flex-shrink-0" size={16} />
                   <div className="min-w-0 flex-1">
-                    <p className="font-medium text-slate-900 text-sm lg:text-base truncate">{job.customer_name || 'Unknown Customer'}</p>
+                    <p className="font-medium text-slate-900 text-sm lg:text-base truncate">
+                      {(() => {
+                        const customer = customers?.find((c: any) => c.id === job.customer);
+                        return customer ? customer.name : (job.customer_name && job.customer_name.trim() !== '' ? job.customer_name : 'Unknown Customer');
+                      })()}
+                    </p>
+                    <p className="text-xs text-slate-600 truncate">Customer</p>
                   </div>
                 </div>
                 <div className="flex items-center space-x-2">
                   <MapPin className="text-slate-400 flex-shrink-0" size={16} />
                   <div className="min-w-0 flex-1">
-                    <p className="text-sm text-slate-900">N/A</p>
-                    <p className="text-xs text-slate-600 truncate">N/A</p>
+                    <p className="text-sm text-slate-900 truncate">
+                      {job.address && job.address.trim() !== '' ? job.address : 'No address'}
+                    </p>
+                    <p className="text-xs text-slate-600 truncate">Location</p>
                   </div>
                 </div>
+                <div className="flex items-center space-x-2">
+                  <Wrench className="text-slate-400 flex-shrink-0" size={16} />
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm text-slate-900 truncate">
+                      {job.assigned_to ? (() => {
+                        const member = teamMembers?.find((m: any) => m.id === job.assigned_to);
+                        return member ? `${member.first_name} ${member.last_name}` : `Member ${job.assigned_to}`;
+                      })() : 'Unassigned'}
+                    </p>
+                    <p className="text-xs text-slate-600 truncate">Assigned To</p>
+                  </div>
+                </div>
+              </div>
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div className="flex items-center space-x-2">
                   <Clock className="text-slate-400 flex-shrink-0" size={16} />
                   <div>
@@ -628,20 +652,6 @@ const JobsList: React.FC<JobsListProps> = ({ onNewJob }) => {
                       {new Date(job.scheduled_for).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                     </p>
                   </div>
-                </div>
-              </div>
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                <div className="flex items-center space-x-2">
-                  {job.assigned_to ? (
-                    <>
-                      <div className="w-6 h-6 bg-blue-500 rounded-full flex items-center justify-center flex-shrink-0">
-                        <span className="text-white text-xs font-semibold">{typeof job.assigned_to === 'string' ? job.assigned_to.charAt(0) : ''}</span>
-                      </div>
-                      <span className="text-sm text-slate-700">Assigned to {job.assigned_to || 'N/A'}</span>
-                    </>
-                  ) : (
-                    <span className="text-sm text-slate-500">Unassigned</span>
-                  )}
                 </div>
                 <div className="flex flex-col sm:flex-row gap-2">
                   <button

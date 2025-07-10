@@ -72,6 +72,7 @@ interface WorkOrder {
   primary_trade: string;
   amount: string;
   owner: number;
+  address: string;
 }
 
 
