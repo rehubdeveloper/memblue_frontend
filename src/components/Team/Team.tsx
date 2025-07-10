@@ -1,7 +1,7 @@
 import type React from "react"
 
-import { useState, useContext } from "react"
-import { Plus, Copy, Check, Users, LinkIcon, X } from "lucide-react"
+import { useState, useContext, useEffect } from "react"
+import { Plus, Copy, Check, Users, LinkIcon, X, Shield } from "lucide-react"
 import { AuthContext } from "../../context/AppContext"
 
 interface TeamMemberData {
@@ -30,9 +30,19 @@ const TeamInvite: React.FC = () => {
     const [inviteLink, setInviteLink] = useState<InviteLink | null>(null)
     const [loading, setLoading] = useState<boolean>(false)
     const [copied, setCopied] = useState<boolean>(false)
+    const [grantingPermission, setGrantingPermission] = useState<number | null>(null)
 
     const context = useContext(AuthContext);
+    const getTeamMembers = context?.getTeamMembers;
     const sendTeamInvite = context?.sendTeamInvite;
+    const grantJobCreationPermission = context?.grantJobCreationPermission;
+
+    useEffect(() => {
+        if (getTeamMembers) {
+            getTeamMembers();
+        }
+    }, []);
+
     // Map TeamMember to TeamMemberData for UI compatibility
     const teamMembers = (context?.teamMembers ?? []).map((member: any) => ({
         id: member.id,
@@ -141,6 +151,19 @@ const TeamInvite: React.FC = () => {
         }
     }
 
+    const handleGrantPermission = async (memberId: number): Promise<void> => {
+        setGrantingPermission(memberId);
+        try {
+            if (!grantJobCreationPermission) throw new Error('Grant permission function not available');
+            await grantJobCreationPermission(memberId);
+            // The context will handle the toast message and refresh team members
+        } catch (error) {
+            console.error("Error granting permission:", error);
+            // Error is already handled in the context with toast
+        }
+        setGrantingPermission(null);
+    }
+
     return (
         <div className="p-4 sm:p-6 max-w-4xl mx-auto">
             {/* Header */}
@@ -153,16 +176,7 @@ const TeamInvite: React.FC = () => {
                     </div>
                 </div>
 
-                {!inviteLink && (
-                    <button
-                        onClick={createInviteLink}
-                        disabled={loading}
-                        className="flex items-center space-x-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 disabled:opacity-50 w-full sm:w-auto justify-center transition-colors"
-                    >
-                        <Plus size={16} />
-                        <span>{loading ? "Creating..." : "Create Invite Link"}</span>
-                    </button>
-                )}
+
             </div>
 
             {inviteLink ? (
@@ -292,8 +306,24 @@ const TeamInvite: React.FC = () => {
                                                 <p className="text-xs text-slate-500">@{member.username || 'N/A'}</p>
                                                 <p className="text-xs text-slate-400">{member.phone_number || 'N/A'}</p>
                                             </div>
-                                            <div className="text-right sm:ml-4">
-                                                <p className="text-xs text-slate-400">#{member.user_code || 'N/A'}</p>
+                                            <div className="flex items-center space-x-2">
+                                                <div className="text-right sm:ml-4">
+                                                    <p className="text-xs text-slate-400">#{member.user_code || 'N/A'}</p>
+                                                </div>
+                                                {/* Grant Permission Button - Only show for members who don't have permission and if user is admin */}
+                                                {context?.user?.role === 'admin' && !member.can_create_jobs && (
+                                                    <button
+                                                        onClick={() => handleGrantPermission(member.id)}
+                                                        disabled={grantingPermission === member.id}
+                                                        className="flex items-center space-x-1 bg-green-600 text-white px-2 py-1 rounded text-xs hover:bg-green-700 disabled:opacity-50 transition-colors"
+                                                        title="Grant job creation permission"
+                                                    >
+                                                        <Shield size={12} />
+                                                        <span className="">
+                                                            {grantingPermission === member.id ? "Granting..." : "Grant"}
+                                                        </span>
+                                                    </button>
+                                                )}
                                             </div>
                                         </div>
                                     </div>

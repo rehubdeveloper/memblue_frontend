@@ -100,6 +100,7 @@ interface AuthContextType {
   teamMembers: TeamMember[] | null;
   getCustomers: () => Promise<void>;
   getTeamMembers: () => Promise<void>;
+  grantJobCreationPermission: (userId: number) => Promise<any>;
   logout: () => void;
   // Work Orders
   createWorkOrder: (form: any) => Promise<any>;
@@ -254,6 +255,46 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       console.error('Error fetching team members:', error);
       addToast(`Error fetching team members: ${error instanceof Error ? error.message : 'Unknown error'}`, 'error');
       setTeamMembers(null);
+    }
+  };
+
+  const grantJobCreationPermission = async (userId: number): Promise<any> => {
+    const token = getToken();
+
+    if (!token) {
+      throw new Error('No authentication token found');
+    }
+
+    try {
+      const response = await fetch(`${import.meta.env.VITE_BASE_URL}/team/grant-job-permission/`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Token ${token}`
+        },
+        body: JSON.stringify({
+          user_id: userId
+        })
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Failed to grant job creation permission: ${errorText}`);
+      }
+
+      const data = await response.json();
+      setToastMessage('Job creation permission granted successfully!');
+      setToastType('success');
+
+      // Refresh team members to get updated permissions
+      await getTeamMembers();
+
+      return data;
+    } catch (error) {
+      console.error('Error granting job creation permission:', error);
+      setToastMessage(`Error granting job creation permission: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      setToastType('error');
+      throw error;
     }
   };
 
@@ -744,6 +785,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       sendTeamInvite,
       teamMembers,
       getTeamMembers,
+      grantJobCreationPermission,
       logout,
       // Work Orders
       createWorkOrder,
