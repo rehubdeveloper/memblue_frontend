@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useContext, useEffect } from 'react';
 import { Routes, Route, BrowserRouter, Navigate } from 'react-router-dom';
 import TradeSelection from './components/Setup/TradeSelection';
 import DashboardOverview from './components/Dashboard/DashboardOverview';
@@ -16,10 +16,33 @@ import LoginPage from './components/Login/Login';
 import OnboardPage from './components/TeamOnboarding/Onboarding';
 import TeamInvite from './components/Team/Team';
 import DashboardLayout from './components/Layout/DashboardLayout';
+import Toast from './components/Toast';
+import { AuthContext } from './context/AppContext';
 
 function App() {
+  const auth = useContext(AuthContext);
+  const toastMessage = auth?.toastMessage;
+  const setToastMessage = auth?.setToastMessage as (msg: string | null) => void;
+  const toastType = auth?.toastType;
+
+  useEffect(() => {
+    if (toastMessage) {
+      const timer = setTimeout(() => {
+        setToastMessage(null);
+      }, 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [toastMessage, setToastMessage]);
+
   return (
     <BrowserRouter>
+      {toastMessage && (
+        <Toast
+          message={toastMessage}
+          type={toastType as 'success' | 'error' | 'info'}
+          onClose={() => setToastMessage(null)}
+        />
+      )}
       <Routes>
         {/* Public routes */}
         <Route path="/" element={<LandingPage />} />

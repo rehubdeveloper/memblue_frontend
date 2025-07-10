@@ -44,19 +44,20 @@ const Sidebar: React.FC<SidebarProps> = ({ currentUser }) => {
 
   const technicianMenuItems = [
     { id: 'mobile-dashboard', label: 'My Dashboard', icon: Smartphone, route: '/mobile-dashboard' },
-    { id: 'my-jobs', label: 'My Jobs', icon: ClipboardList, route: '/my-jobs' },
+    { id: 'jobs', label: 'Work Orders', icon: ClipboardList, route: '/jobs' },
     { id: 'schedule', label: 'Schedule', icon: Calendar, route: '/schedule' }
   ];
 
-  // Determine menu items based on business_type
+  // Determine menu items based on user role
   let menuItems;
-  if (['solo_operator', 'team_business'].includes(currentUser.business_type)) {
-    // For solo_operator, remove Team tab
+  if (['admin', 'solo'].includes(currentUser.role)) {
+    // For admin and solo, show full menu but remove Team tab for solo
     const filteredAdminMenuItems = adminMenuItems.filter(item =>
-      item.id !== 'team' || currentUser.business_type === 'team_business'
+      item.id !== 'team' || currentUser.role === 'admin'
     );
     menuItems = filteredAdminMenuItems;
   } else {
+    // For members and other roles, show technician menu with Work Orders
     menuItems = technicianMenuItems;
   }
 

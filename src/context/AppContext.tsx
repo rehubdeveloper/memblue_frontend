@@ -5,6 +5,7 @@ import { CustomerFormData } from '../types';
 
 interface User {
   id: number;
+  can_create_jobs: boolean;
   username: string;
   email: string;
   first_name: string;
@@ -104,6 +105,9 @@ interface AuthContextType {
   createWorkOrder: (form: any) => Promise<any>;
   workOrders: WorkOrder[] | null;
   getWorkOrders: () => Promise<void>;
+  getWorkOrder: (id: number) => Promise<WorkOrder>;
+  updateWorkOrder: (id: number, updates: Partial<WorkOrder>) => Promise<WorkOrder>;
+  deleteWorkOrder: (id: number) => Promise<boolean>;
 }
 
 export const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -163,7 +167,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       }
 
       const data = await response.json();
-      console.log("Profile Fetched!");
+      console.log("Profile Fetched!", data);
 
       setUser(data);
     } catch (error) {
@@ -614,6 +618,91 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
+  // Work Orders Functions
+  const getWorkOrder = async (id: number) => {
+    const token = getToken();
+    try {
+      const response = await fetch(`${import.meta.env.VITE_BASE_URL}/work-orders/${id}/`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Token ${token}`
+        },
+      });
+      if (!response.ok) {
+        const errorDetails = await response.text();
+        throw new Error(`Error fetching work order: ${errorDetails}`);
+      }
+      const data = await response.json();
+      return data;
+    } catch (error) {
+      console.error('getWorkOrder error:', error);
+      setToastMessage(`Error fetching work order: ${error}`);
+      setToastType('error');
+      throw error;
+    }
+  };
+
+  const updateWorkOrder = async (id: number, updates: any) => {
+    const token = getToken();
+    try {
+      const response = await fetch(`${import.meta.env.VITE_BASE_URL}/work-orders/${id}/`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Token ${token}`
+        },
+        body: JSON.stringify(updates)
+      });
+      if (!response.ok) {
+        const errorDetails = await response.text();
+        throw new Error(`Error updating work order: ${errorDetails}`);
+      }
+      const data = await response.json();
+      setToastMessage('Work order updated successfully!');
+      setToastType('success');
+
+      // Refresh work orders list
+      await getWorkOrders();
+
+      return data;
+    } catch (error) {
+      console.error('updateWorkOrder error:', error);
+      setToastMessage(`Error updating work order: ${error}`);
+      setToastType('error');
+      throw error;
+    }
+  };
+
+  const deleteWorkOrder = async (id: number) => {
+    const token = getToken();
+    try {
+      const response = await fetch(`${import.meta.env.VITE_BASE_URL}/work-orders/${id}/`, {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Token ${token}`
+        },
+      });
+      if (!response.ok) {
+        const errorDetails = await response.text();
+        throw new Error(`Error deleting work order: ${errorDetails}`);
+      }
+      setToastMessage('Work order deleted successfully!');
+      setToastType('success');
+
+      // Refresh work orders list
+      await getWorkOrders();
+
+      return true;
+    } catch (error) {
+      console.error('deleteWorkOrder error:', error);
+      setToastMessage(`Error deleting work order: ${error}`);
+      setToastType('error');
+      throw error;
+    }
+  };
+
   useEffect(() => {
     const initialize = async () => {
       await fetchUserProfile();
@@ -660,6 +749,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       createWorkOrder,
       workOrders,
       getWorkOrders,
+      getWorkOrder,
+      updateWorkOrder,
+      deleteWorkOrder,
     }}>
       {children}
     </AuthContext.Provider>
