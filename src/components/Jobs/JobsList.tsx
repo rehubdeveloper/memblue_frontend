@@ -69,7 +69,7 @@ const NewJobDialog: React.FC<NewJobDialogProps> = ({ open, onClose, onSubmit }) 
         primary_trade: user?.primary_trade,
         owner: user?.id,
       };
-      console.log(payload)
+      console.log('Submitting new job payload');
       await onSubmit(payload);
       setForm({
         customer_id: 0,

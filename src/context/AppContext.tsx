@@ -169,7 +169,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       }
 
       const data = await response.json();
-      console.log("Profile Fetched!", data);
+      console.log("Profile Fetched!");
 
       setUser(data);
     } catch (error) {
@@ -250,7 +250,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       const data = await response.json();
       setTeamMembers(data);
       console.log("Team members fetched:", data && Array.isArray(data) ? data.length : 0);
-      console.log("Team members:", data);
+      console.log("Team members fetched");
 
     } catch (error) {
       console.error('Error fetching team members:', error);
@@ -324,7 +324,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       }
 
       const data = await response.json();
-      console.log("Inventory created:", data.name);
+      console.log("Inventory created:", data && data.name ? data.name : "[hidden]");
 
       // Refresh inventory list after creation
       await getInventory();
@@ -359,7 +359,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       }
 
       const data = await response.json();
-      console.log("Inventory updated:", data.name);
+      console.log("Inventory updated:", data && data.name ? data.name : "[hidden]");
       setToastMessage(`${data.name} Inventory Updated!`)
       setToastType('success')
 
@@ -466,7 +466,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       }
 
       const data = await res.json();
-      console.log(`Customer "${data.name}" created successfully`)
+      console.log("Customer created successfully");
       setToastMessage(`Customer "${data.name}" created successfully`);
       setToastType('success')
 
@@ -501,7 +501,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       }
 
       const updatedCustomer = await res.json();
-      console.log(`Customer "${updatedCustomer.name}" updated successfully`)
+      console.log("Customer updated successfully");
       setToastMessage(`Customer "${updatedCustomer.name}" updated successfully`);
       setToastType('success')
 
@@ -534,7 +534,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         throw new Error(`Failed to delete customer: ${errorText}`);
       }
 
-      console.log(`Customer with ID ${id} deleted successfully`)
+      console.log(`Customer with ID ${id} deleted successfully`);
       setToastMessage(`Customer deleted successfully`);
       setToastType('success')
 
@@ -569,7 +569,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
       const data = await res.json();
       setCustomers(data)
-      console.log(`Customers Fetched successfully`)
+      console.log("Customers Fetched successfully");
       return data;
     } catch (error) {
       console.error('error: ', error)

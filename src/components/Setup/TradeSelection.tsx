@@ -179,7 +179,7 @@ const TradeSelection: React.FC<TradeSelectionProps> = ({ onComplete, login }) =>
       secondary_trades: cleanSecondaryTrades.map(trade => tradeNameMapping[trade] || trade)
     };
 
-    console.log('Sending payload:', payload);
+    console.log('Sending payload');
 
     try {
       const response = await fetch('https://memblue-backend.onrender.com/api/users/register/', {
