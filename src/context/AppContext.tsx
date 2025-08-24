@@ -75,6 +75,52 @@ interface WorkOrder {
   address: string;
 }
 
+interface ScheduleFilters {
+  start_date?: string;
+  end_date?: string;
+  status?: string;
+  assigned_to?: number;
+}
+
+interface ScheduleSummary {
+  pending: number;
+  confirmed: number;
+  en_route: number;
+  in_progress: number;
+  completed: number;
+  cancelled: number;
+}
+
+interface ScheduleResponse {
+  work_orders: WorkOrder[];
+  total_count: number;
+  filters_applied: ScheduleFilters;
+  summary: ScheduleSummary;
+}
+
+interface DashboardMetrics {
+  jobs_today: number;
+  jobs_trend: string;
+  jobs_diff: number;
+  revenue_this_month: number;
+  revenue_change_pct: number;
+  active_customers: number;
+  customers_with_open_jobs: number;
+  new_customers_this_week: number;
+  total_open_jobs: number;
+  overdue_jobs: number;
+  todays_schedule: Array<{
+    title: string;
+    address: string;
+    time: string;
+    status: string;
+  }>;
+  alerts: {
+    urgent_jobs: number;
+    low_inventory: number;
+  };
+}
+
 
 interface AuthContextType {
   user: User | null;
@@ -85,6 +131,7 @@ interface AuthContextType {
   refetchProfile: () => Promise<void>;
   refetchInventory: () => Promise<void>;
   inventoryList: InventoryItem[] | null;
+  getInventory: () => Promise<any>;
   setToastMessage: React.Dispatch<React.SetStateAction<string | null>>;
   toastMessage: string | null;
   setToastType: React.Dispatch<React.SetStateAction<string>>;
@@ -110,6 +157,12 @@ interface AuthContextType {
   getWorkOrder: (id: number) => Promise<WorkOrder>;
   updateWorkOrder: (id: number, updates: Partial<WorkOrder>) => Promise<WorkOrder>;
   deleteWorkOrder: (id: number) => Promise<boolean>;
+  // Schedule
+  getSchedule: (filters?: ScheduleFilters) => Promise<ScheduleResponse>;
+  scheduleData: ScheduleResponse | null;
+  // Reports
+  getDashboardMetrics: () => Promise<DashboardMetrics>;
+  dashboardMetrics: DashboardMetrics | null;
 }
 
 export const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -123,6 +176,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [customers, setCustomers] = useState<CustomerFormData[] | null>(null)
   const [teamMembers, setTeamMembers] = useState<TeamMember[] | null>(null);
   const [workOrders, setWorkOrders] = useState<WorkOrder[] | null>(null);
+  const [scheduleData, setScheduleData] = useState<ScheduleResponse | null>(null);
+  const [dashboardMetrics, setDashboardMetrics] = useState<DashboardMetrics | null>(null);
 
   const [toastQueue, setToastQueue] = useState<Toast[]>([]);
 
@@ -174,8 +229,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       setUser(data);
     } catch (error) {
       console.error("Error fetching user profile:", error);
-      setToastMessage(error instanceof Error ? error.message : String(error));
-      setToastType('error')
+      // Don't show error toast on onboarding page
+      const isOnboardingPage = window.location.pathname.includes('/onboard/');
+      if (!isOnboardingPage) {
+        setToastMessage(error instanceof Error ? error.message : String(error));
+        setToastType('error')
+      }
       setUser(null);
     } finally {
       setIsLoading(false);
@@ -745,20 +804,179 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
+  // Schedule Functions
+  const getSchedule = async (filters?: ScheduleFilters): Promise<ScheduleResponse> => {
+    const token = getToken();
+    try {
+      // Build query parameters
+      const params = new URLSearchParams();
+      if (filters?.start_date) params.append('start_date', filters.start_date);
+      if (filters?.end_date) params.append('end_date', filters.end_date);
+      if (filters?.status) params.append('status', filters.status);
+      
+      // For team members, automatically filter by their assigned jobs
+      // For admins and solo operators, allow filtering by assigned_to or show all
+      if (user?.role === 'member') {
+        // Team members can only see their own assigned jobs
+        params.append('assigned_to', user.id.toString());
+      } else if (filters?.assigned_to) {
+        // Admins and solo can filter by specific user if provided
+        params.append('assigned_to', filters.assigned_to.toString());
+      }
+
+      const url = `${import.meta.env.VITE_BASE_URL}/schedule/${params.toString() ? `?${params.toString()}` : ''}`;
+      
+      const response = await fetch(url, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Token ${token}`
+        },
+      });
+
+      if (!response.ok) {
+        const errorDetails = await response.text();
+        throw new Error(`Error fetching schedule: ${errorDetails}`);
+      }
+
+      const data = await response.json();
+      setScheduleData(data);
+      return data;
+    } catch (error) {
+      console.error('getSchedule error:', error);
+      setToastMessage(`Error fetching schedule: ${error}`);
+      setToastType('error');
+      throw error;
+    }
+  };
+
+  // Reports Functions
+  const getDashboardMetrics = async (): Promise<DashboardMetrics> => {
+    const token = getToken();
+    try {
+      let url: string;
+      
+      // Use admin dashboard endpoint for admins, calculate metrics for others
+      if (user?.role === 'admin') {
+        url = `${import.meta.env.VITE_BASE_URL}/team/admin-dashboard/`;
+      } else {
+        // For solo operators and team members, calculate metrics from work orders
+        url = `${import.meta.env.VITE_BASE_URL}/work-orders/`;
+      }
+
+      const response = await fetch(url, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Token ${token}`
+        },
+      });
+
+      if (!response.ok) {
+        const errorDetails = await response.text();
+        throw new Error(`Error fetching dashboard metrics: ${errorDetails}`);
+      }
+
+      const data = await response.json();
+      
+      if (user?.role === 'admin') {
+        // Admin dashboard returns the metrics directly
+        setDashboardMetrics(data);
+        return data;
+      } else {
+        // For solo and team members, calculate metrics from work orders
+        const workOrders = data;
+        const today = new Date();
+        const todayStr = today.toISOString().split('T')[0];
+        
+        // Calculate metrics from work orders
+        const jobsToday = workOrders.filter((job: any) => 
+          job.scheduled_for?.startsWith(todayStr)
+        ).length;
+        
+        const completedJobs = workOrders.filter((job: any) => 
+          job.status === 'completed'
+        ).length;
+        
+        const totalRevenue = workOrders.reduce((sum: number, job: any) => 
+          sum + parseFloat(job.amount || 0), 0
+        );
+        
+        const openJobs = workOrders.filter((job: any) => 
+          ['pending', 'confirmed', 'en_route', 'in_progress'].includes(job.status)
+        ).length;
+        
+        const overdueJobs = workOrders.filter((job: any) => {
+          if (job.status === 'completed') return false;
+          const scheduledDate = new Date(job.scheduled_for);
+          return scheduledDate < today;
+        }).length;
+        
+        const urgentJobs = workOrders.filter((job: any) => 
+          job.priority === 'urgent' && job.status !== 'completed'
+        ).length;
+        
+        const metrics: DashboardMetrics = {
+          jobs_today: jobsToday,
+          jobs_trend: 'no_change',
+          jobs_diff: 0,
+          revenue_this_month: totalRevenue,
+          revenue_change_pct: 0,
+          active_customers: customers?.length || 0,
+          customers_with_open_jobs: 0, // Would need to calculate this
+          new_customers_this_week: 0, // Would need to calculate this
+          total_open_jobs: openJobs,
+          overdue_jobs: overdueJobs,
+          todays_schedule: workOrders
+            .filter((job: any) => job.scheduled_for?.startsWith(todayStr))
+            .map((job: any) => ({
+              title: job.job_type,
+              address: job.address,
+              time: new Date(job.scheduled_for).toLocaleTimeString('en-US', { 
+                hour: '2-digit', 
+                minute: '2-digit' 
+              }),
+              status: job.status
+            })),
+          alerts: {
+            urgent_jobs: urgentJobs,
+            low_inventory: 0 // Would need to fetch from inventory endpoint
+          }
+        };
+        
+        setDashboardMetrics(metrics);
+        return metrics;
+      }
+    } catch (error) {
+      console.error('getDashboardMetrics error:', error);
+      setToastMessage(`Error fetching dashboard metrics: ${error}`);
+      setToastType('error');
+      throw error;
+    }
+  };
+
   useEffect(() => {
     const initialize = async () => {
+      // Check if we're on the onboarding page
+      const isOnboardingPage = window.location.pathname.includes('/onboard/');
+      
+      if (isOnboardingPage) {
+        // Don't try to fetch authenticated data on onboarding page
+        setIsLoading(false);
+        return;
+      }
+
       await fetchUserProfile();
 
-      await getInventory();
-
-      await getCustomers();
-
-
-      await getTeamMembers();
-
+      // Only fetch other data if user is authenticated
+      if (user) {
+        await getInventory();
+        await getCustomers();
+        await getTeamMembers();
+      }
     };
     initialize();
-  }, []);
+  }, []); // Remove user dependency to prevent infinite loop
 
   return (
     <AuthContext.Provider value={{
@@ -771,6 +989,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       deleteInventory,
       refetchInventory,
       inventoryList,
+      getInventory,
       setToastMessage,
       toastMessage,
       setToastType,
@@ -795,6 +1014,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       getWorkOrder,
       updateWorkOrder,
       deleteWorkOrder,
+      // Schedule
+      getSchedule,
+      scheduleData,
+      // Reports
+      getDashboardMetrics,
+      dashboardMetrics,
     }}>
       {children}
     </AuthContext.Provider>

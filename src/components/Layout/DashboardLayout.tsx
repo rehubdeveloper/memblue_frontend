@@ -7,8 +7,17 @@ import { AuthContext } from '../../context/AppContext';
 const DashboardLayout: React.FC = () => {
     const context = useContext(AuthContext);
     const user = context?.user;
+    const isLoading = context?.isLoading;
 
-    if (!user) {
+    // Check if we're on the onboarding page
+    const isOnboardingPage = window.location.pathname.includes('/onboard/');
+    
+    if (isOnboardingPage) {
+        // Don't show dashboard layout for onboarding page
+        return null;
+    }
+
+    if (isLoading) {
         // Show a modern spinner while loading
         return (
             <div className="flex items-center justify-center min-h-screen">
@@ -19,6 +28,12 @@ const DashboardLayout: React.FC = () => {
                 <span className="text-slate-600 text-lg">Loading...</span>
             </div>
         );
+    }
+
+    if (!user) {
+        // Redirect to login if no user and not loading
+        window.location.href = '/login';
+        return null;
     }
 
     return (
