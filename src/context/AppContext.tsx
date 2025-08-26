@@ -121,6 +121,62 @@ interface DashboardMetrics {
   };
 }
 
+interface LineItem {
+  id: number;
+  description: string;
+  quantity: number;
+  unit_price: number;
+  total: number;
+  category: 'Labor' | 'Materials' | 'Equipment' | 'Travel' | 'Other';
+}
+
+interface Estimate {
+  id: number;
+  estimate_number: string;
+  customer: number;
+  customer_name: string;
+  job?: number;
+  line_items: LineItem[];
+  subtotal: number;
+  tax_rate: number;
+  tax_amount: number;
+  discount: number;
+  total: number;
+  status: 'draft' | 'sent' | 'approved' | 'rejected' | 'expired';
+  expires_at: string;
+  sent_at?: string;
+  approved_at?: string;
+  notes?: string;
+  created_by: number;
+  created_at: string;
+  updated_at: string;
+}
+
+interface Invoice {
+  id: number;
+  invoice_number: string;
+  estimate?: number;
+  customer: number;
+  customer_name: string;
+  job?: number;
+  line_items: LineItem[];
+  subtotal: number;
+  tax_rate: number;
+  tax_amount: number;
+  discount: number;
+  total: number;
+  paid_amount: number;
+  balance_due: number;
+  due_date: string;
+  status: 'draft' | 'sent' | 'paid' | 'overdue' | 'cancelled';
+  sent_at?: string;
+  paid_at?: string;
+  notes?: string;
+  created_by: number;
+  created_at: string;
+  updated_at: string;
+}
+
 
 interface AuthContextType {
   user: User | null;
@@ -163,6 +219,22 @@ interface AuthContextType {
   // Reports
   getDashboardMetrics: () => Promise<DashboardMetrics>;
   dashboardMetrics: DashboardMetrics | null;
+  // Estimates
+  createEstimate: (formData: any) => Promise<Estimate>;
+  estimates: Estimate[] | null;
+  getEstimates: () => Promise<void>;
+  getEstimate: (id: number) => Promise<Estimate>;
+  updateEstimate: (id: number, updates: Partial<Estimate>) => Promise<Estimate>;
+  deleteEstimate: (id: number) => Promise<boolean>;
+  convertEstimateToInvoice: (id: number) => Promise<Invoice>;
+  // Invoices
+  createInvoice: (formData: any) => Promise<Invoice>;
+  invoices: Invoice[] | null;
+  getInvoices: () => Promise<void>;
+  getInvoice: (id: number) => Promise<Invoice>;
+  updateInvoice: (id: number, updates: Partial<Invoice>) => Promise<Invoice>;
+  deleteInvoice: (id: number) => Promise<boolean>;
+  markInvoiceAsPaid: (id: number, amount: number) => Promise<Invoice>;
 }
 
 export const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -178,6 +250,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [workOrders, setWorkOrders] = useState<WorkOrder[] | null>(null);
   const [scheduleData, setScheduleData] = useState<ScheduleResponse | null>(null);
   const [dashboardMetrics, setDashboardMetrics] = useState<DashboardMetrics | null>(null);
+  const [estimates, setEstimates] = useState<Estimate[] | null>(null);
+  const [invoices, setInvoices] = useState<Invoice[] | null>(null);
 
   const [toastQueue, setToastQueue] = useState<Toast[]>([]);
 
@@ -955,6 +1029,372 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
+  // Estimate Functions
+  const createEstimate = async (formData: any): Promise<Estimate> => {
+    const token = getToken();
+    try {
+      const response = await fetch(`${import.meta.env.VITE_BASE_URL}/estimates/`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Token ${token}`
+        },
+        body: JSON.stringify(formData)
+      });
+
+      if (!response.ok) {
+        const errorDetails = await response.text();
+        throw new Error(`Error creating estimate: ${errorDetails}`);
+      }
+
+      const data = await response.json();
+      setToastMessage('Estimate created successfully!');
+      setToastType('success');
+
+      // Refresh estimates list
+      await getEstimates();
+
+      return data;
+    } catch (error) {
+      console.error('createEstimate error:', error);
+      setToastMessage(`Error creating estimate: ${error}`);
+      setToastType('error');
+      throw error;
+    }
+  };
+
+  const getEstimates = async (): Promise<void> => {
+    const token = getToken();
+    try {
+      const response = await fetch(`${import.meta.env.VITE_BASE_URL}/estimates/`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Token ${token}`
+        },
+      });
+
+      if (!response.ok) {
+        const errorDetails = await response.text();
+        throw new Error(`Error fetching estimates: ${errorDetails}`);
+      }
+
+      const data = await response.json();
+      setEstimates(data);
+    } catch (error) {
+      console.error('getEstimates error:', error);
+      setToastMessage(`Error fetching estimates: ${error}`);
+      setToastType('error');
+      setEstimates(null);
+    }
+  };
+
+  const getEstimate = async (id: number): Promise<Estimate> => {
+    const token = getToken();
+    try {
+      const response = await fetch(`${import.meta.env.VITE_BASE_URL}/estimates/${id}/`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Token ${token}`
+        },
+      });
+
+      if (!response.ok) {
+        const errorDetails = await response.text();
+        throw new Error(`Error fetching estimate: ${errorDetails}`);
+      }
+
+      const data = await response.json();
+      return data;
+    } catch (error) {
+      console.error('getEstimate error:', error);
+      setToastMessage(`Error fetching estimate: ${error}`);
+      setToastType('error');
+      throw error;
+    }
+  };
+
+  const updateEstimate = async (id: number, updates: Partial<Estimate>): Promise<Estimate> => {
+    const token = getToken();
+    try {
+      const response = await fetch(`${import.meta.env.VITE_BASE_URL}/estimates/${id}/`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Token ${token}`
+        },
+        body: JSON.stringify(updates)
+      });
+
+      if (!response.ok) {
+        const errorDetails = await response.text();
+        throw new Error(`Error updating estimate: ${errorDetails}`);
+      }
+
+      const data = await response.json();
+      setToastMessage('Estimate updated successfully!');
+      setToastType('success');
+
+      // Refresh estimates list
+      await getEstimates();
+
+      return data;
+    } catch (error) {
+      console.error('updateEstimate error:', error);
+      setToastMessage(`Error updating estimate: ${error}`);
+      setToastType('error');
+      throw error;
+    }
+  };
+
+  const deleteEstimate = async (id: number): Promise<boolean> => {
+    const token = getToken();
+    try {
+      const response = await fetch(`${import.meta.env.VITE_BASE_URL}/estimates/${id}/`, {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Token ${token}`
+        },
+      });
+
+      if (!response.ok) {
+        const errorDetails = await response.text();
+        throw new Error(`Error deleting estimate: ${errorDetails}`);
+      }
+
+      setToastMessage('Estimate deleted successfully!');
+      setToastType('success');
+
+      // Refresh estimates list
+      await getEstimates();
+
+      return true;
+    } catch (error) {
+      console.error('deleteEstimate error:', error);
+      setToastMessage(`Error deleting estimate: ${error}`);
+      setToastType('error');
+      throw error;
+    }
+  };
+
+  const convertEstimateToInvoice = async (id: number): Promise<Invoice> => {
+    const token = getToken();
+    try {
+      const response = await fetch(`${import.meta.env.VITE_BASE_URL}/estimates/${id}/convert-to-invoice/`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Token ${token}`
+        },
+      });
+
+      if (!response.ok) {
+        const errorDetails = await response.text();
+        throw new Error(`Error converting estimate to invoice: ${errorDetails}`);
+      }
+
+      const data = await response.json();
+      setToastMessage('Estimate converted to invoice successfully!');
+      setToastType('success');
+
+      // Refresh both estimates and invoices lists
+      await getEstimates();
+      await getInvoices();
+
+      return data;
+    } catch (error) {
+      console.error('convertEstimateToInvoice error:', error);
+      setToastMessage(`Error converting estimate to invoice: ${error}`);
+      setToastType('error');
+      throw error;
+    }
+  };
+
+  // Invoice Functions
+  const createInvoice = async (formData: any): Promise<Invoice> => {
+    const token = getToken();
+    try {
+      const response = await fetch(`${import.meta.env.VITE_BASE_URL}/invoices/`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Token ${token}`
+        },
+        body: JSON.stringify(formData)
+      });
+
+      if (!response.ok) {
+        const errorDetails = await response.text();
+        throw new Error(`Error creating invoice: ${errorDetails}`);
+      }
+
+      const data = await response.json();
+      setToastMessage('Invoice created successfully!');
+      setToastType('success');
+
+      // Refresh invoices list
+      await getInvoices();
+
+      return data;
+    } catch (error) {
+      console.error('createInvoice error:', error);
+      setToastMessage(`Error creating invoice: ${error}`);
+      setToastType('error');
+      throw error;
+    }
+  };
+
+  const getInvoices = async (): Promise<void> => {
+    const token = getToken();
+    try {
+      const response = await fetch(`${import.meta.env.VITE_BASE_URL}/invoices/`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Token ${token}`
+        },
+      });
+
+      if (!response.ok) {
+        const errorDetails = await response.text();
+        throw new Error(`Error fetching invoices: ${errorDetails}`);
+      }
+
+      const data = await response.json();
+      setInvoices(data);
+    } catch (error) {
+      console.error('getInvoices error:', error);
+      setToastMessage(`Error fetching invoices: ${error}`);
+      setToastType('error');
+      setInvoices(null);
+    }
+  };
+
+  const getInvoice = async (id: number): Promise<Invoice> => {
+    const token = getToken();
+    try {
+      const response = await fetch(`${import.meta.env.VITE_BASE_URL}/invoices/${id}/`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Token ${token}`
+        },
+      });
+
+      if (!response.ok) {
+        const errorDetails = await response.text();
+        throw new Error(`Error fetching invoice: ${errorDetails}`);
+      }
+
+      const data = await response.json();
+      return data;
+    } catch (error) {
+      console.error('getInvoice error:', error);
+      setToastMessage(`Error fetching invoice: ${error}`);
+      setToastType('error');
+      throw error;
+    }
+  };
+
+  const updateInvoice = async (id: number, updates: Partial<Invoice>): Promise<Invoice> => {
+    const token = getToken();
+    try {
+      const response = await fetch(`${import.meta.env.VITE_BASE_URL}/invoices/${id}/`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Token ${token}`
+        },
+        body: JSON.stringify(updates)
+      });
+
+      if (!response.ok) {
+        const errorDetails = await response.text();
+        throw new Error(`Error updating invoice: ${errorDetails}`);
+      }
+
+      const data = await response.json();
+      setToastMessage('Invoice updated successfully!');
+      setToastType('success');
+
+      // Refresh invoices list
+      await getInvoices();
+
+      return data;
+    } catch (error) {
+      console.error('updateInvoice error:', error);
+      setToastMessage(`Error updating invoice: ${error}`);
+      setToastType('error');
+      throw error;
+    }
+  };
+
+  const deleteInvoice = async (id: number): Promise<boolean> => {
+    const token = getToken();
+    try {
+      const response = await fetch(`${import.meta.env.VITE_BASE_URL}/invoices/${id}/`, {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Token ${token}`
+        },
+      });
+
+      if (!response.ok) {
+        const errorDetails = await response.text();
+        throw new Error(`Error deleting invoice: ${errorDetails}`);
+      }
+
+      setToastMessage('Invoice deleted successfully!');
+      setToastType('success');
+
+      // Refresh invoices list
+      await getInvoices();
+
+      return true;
+    } catch (error) {
+      console.error('deleteInvoice error:', error);
+      setToastMessage(`Error deleting invoice: ${error}`);
+      setToastType('error');
+      throw error;
+    }
+  };
+
+  const markInvoiceAsPaid = async (id: number, amount: number): Promise<Invoice> => {
+    const token = getToken();
+    try {
+      const response = await fetch(`${import.meta.env.VITE_BASE_URL}/invoices/${id}/mark-paid/`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Token ${token}`
+        },
+        body: JSON.stringify({ amount })
+      });
+
+      if (!response.ok) {
+        const errorDetails = await response.text();
+        throw new Error(`Error marking invoice as paid: ${errorDetails}`);
+      }
+
+      const data = await response.json();
+      setToastMessage('Payment recorded successfully!');
+      setToastType('success');
+
+      // Refresh invoices list
+      await getInvoices();
+
+      return data;
+    } catch (error) {
+      console.error('markInvoiceAsPaid error:', error);
+      setToastMessage(`Error recording payment: ${error}`);
+      setToastType('error');
+      throw error;
+    }
+  };
+
   useEffect(() => {
     const initialize = async () => {
       // Check if we're on the onboarding page
@@ -967,16 +1407,24 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       }
 
       await fetchUserProfile();
+    };
+    initialize();
+  }, []); // Remove user dependency to prevent infinite loop
 
-      // Only fetch other data if user is authenticated
+  // Separate useEffect to fetch data after user is loaded
+  useEffect(() => {
+    const fetchData = async () => {
       if (user) {
         await getInventory();
         await getCustomers();
         await getTeamMembers();
+        await getWorkOrders(); // Add this to fetch work orders
+        await getEstimates();
+        await getInvoices();
       }
     };
-    initialize();
-  }, []); // Remove user dependency to prevent infinite loop
+    fetchData();
+  }, [user]); // This will run when user is set
 
   return (
     <AuthContext.Provider value={{
@@ -1020,6 +1468,22 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       // Reports
       getDashboardMetrics,
       dashboardMetrics,
+      // Estimates
+      createEstimate,
+      estimates,
+      getEstimates,
+      getEstimate,
+      updateEstimate,
+      deleteEstimate,
+      convertEstimateToInvoice,
+      // Invoices
+      createInvoice,
+      invoices,
+      getInvoices,
+      getInvoice,
+      updateInvoice,
+      deleteInvoice,
+      markInvoiceAsPaid,
     }}>
       {children}
     </AuthContext.Provider>

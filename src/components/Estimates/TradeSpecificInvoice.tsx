@@ -4,9 +4,10 @@ import { useAuth } from '../../context/AppContext';
 import { tradeConfigs } from '../../data/tradeConfigs';
 import { format, addDays } from 'date-fns';
 
-interface TradeSpecificEstimateProps {
-  estimate?: any; // Optional estimate for editing
-  onSave: (estimate: any) => void;
+interface TradeSpecificInvoiceProps {
+  estimate?: any; // Optional estimate to convert from
+  invoice?: any; // Optional invoice to edit
+  onSave: (invoice: any) => void;
   onCancel: () => void;
 }
 
@@ -17,14 +18,15 @@ interface LineItem {
   category: 'Labor' | 'Materials' | 'Equipment' | 'Travel' | 'Other';
 }
 
-const TradeSpecificEstimate: React.FC<TradeSpecificEstimateProps> = ({ estimate, onSave, onCancel }) => {
-  const { user, customers, workOrders, createEstimate, updateEstimate } = useAuth();
+const TradeSpecificInvoice: React.FC<TradeSpecificInvoiceProps> = ({ estimate, invoice, onSave, onCancel }) => {
+  const { user, customers, workOrders, createInvoice, updateInvoice } = useAuth();
   const [loading, setLoading] = useState(false);
   const [selectedCustomer, setSelectedCustomer] = useState<number | ''>('');
   const [selectedJob, setSelectedJob] = useState<number | ''>('');
   const [notes, setNotes] = useState('');
-  const [expiresAt, setExpiresAt] = useState(format(addDays(new Date(), 30), 'yyyy-MM-dd'));
-  const [status, setStatus] = useState<'draft' | 'sent' | 'approved' | 'rejected' | 'expired'>('draft');
+  const [dueDate, setDueDate] = useState(format(addDays(new Date(), 30), 'yyyy-MM-dd'));
+  const [paymentTerms, setPaymentTerms] = useState('Net 30');
+  const [status, setStatus] = useState<'draft' | 'sent' | 'paid' | 'overdue' | 'cancelled'>('draft');
   const [lineItems, setLineItems] = useState<LineItem[]>([
     { description: '', quantity: 1, unit_price: 0, category: 'Labor' }
   ]);
@@ -45,24 +47,38 @@ const TradeSpecificEstimate: React.FC<TradeSpecificEstimateProps> = ({ estimate,
 
   const config = tradeConfigs[getTradeConfigKey(user?.primary_trade || 'hvac_pro')];
 
-  // Populate form when editing an existing estimate
+  // Populate form when converting from estimate or editing invoice
   useEffect(() => {
     if (estimate) {
       setSelectedCustomer(estimate.customer);
       setSelectedJob(estimate.job || '');
       setNotes(estimate.notes || '');
-      setExpiresAt(format(new Date(estimate.expires_at), 'yyyy-MM-dd'));
       setTaxRate(estimate.tax_rate);
       setDiscount(estimate.discount);
-      setStatus(estimate.status || 'draft');
+      setStatus('draft'); // Always start as draft when converting from estimate
       setLineItems(estimate.line_items.map((item: any) => ({
         description: item.description,
         quantity: item.quantity,
         unit_price: item.unit_price,
         category: item.category
       })));
+    } else if (invoice) {
+      setSelectedCustomer(invoice.customer);
+      setSelectedJob(invoice.job || '');
+      setNotes(invoice.notes || '');
+      setTaxRate(invoice.tax_rate);
+      setDiscount(invoice.discount);
+      setStatus(invoice.status || 'draft');
+      setDueDate(format(new Date(invoice.due_date), 'yyyy-MM-dd'));
+      setPaymentTerms(invoice.payment_terms || 'Net 30');
+      setLineItems(invoice.line_items.map((item: any) => ({
+        description: item.description,
+        quantity: item.quantity,
+        unit_price: item.unit_price,
+        category: item.category
+      })));
     }
-  }, [estimate]);
+  }, [estimate, invoice]);
 
   const addLineItem = () => {
     setLineItems([...lineItems, { 
@@ -111,35 +127,39 @@ const TradeSpecificEstimate: React.FC<TradeSpecificEstimateProps> = ({ estimate,
 
     setLoading(true);
     try {
-      const estimateData = {
-        customer: selectedCustomer,
-        job: selectedJob || null,
-        line_items: lineItems.map(item => ({
-          description: item.description,
-          quantity: item.quantity,
-          unit_price: item.unit_price,
-          category: item.category
-        })),
-        tax_rate: taxRate,
-        discount: discount,
-        notes: notes,
-        expires_at: expiresAt + 'T23:59:59Z',
-        status: status,
-        created_by: user?.id
-      };
+      // Backend will automatically populate customer details (address, phone, email)
+      // and job number from the customer and job relationships
+             const invoiceData = {
+         customer: selectedCustomer,
+         job: selectedJob || null,
+         estimate: estimate?.id || null,
+         line_items: lineItems.map(item => ({
+           description: item.description,
+           quantity: item.quantity,
+           unit_price: item.unit_price,
+           category: item.category
+         })),
+         tax_rate: taxRate,
+         discount: discount,
+         notes: notes,
+         due_date: dueDate + 'T23:59:59Z',
+         payment_terms: paymentTerms,
+         status: status,
+         created_by: user?.id
+       };
 
-      let savedEstimate;
-      if (estimate) {
-        // Update existing estimate
-        savedEstimate = await updateEstimate(estimate.id, estimateData);
+      let savedInvoice;
+      if (invoice) {
+        // Update existing invoice
+        savedInvoice = await updateInvoice(invoice.id, invoiceData);
       } else {
-        // Create new estimate
-        savedEstimate = await createEstimate(estimateData);
+        // Create new invoice
+        savedInvoice = await createInvoice(invoiceData);
       }
       
-      onSave(savedEstimate);
+      onSave(savedInvoice);
     } catch (error) {
-      console.error('Error saving estimate:', error);
+      console.error('Error creating invoice:', error);
     } finally {
       setLoading(false);
     }
@@ -170,9 +190,11 @@ const TradeSpecificEstimate: React.FC<TradeSpecificEstimateProps> = ({ estimate,
     <div className="bg-white rounded-lg p-6 shadow-sm border border-slate-200 max-w-4xl mx-auto">
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center space-x-3">
-          <span className="text-2xl">{config.icon}</span>
+          <span className="text-2xl">💰</span>
           <h2 className="text-xl font-semibold text-slate-900">
-            {estimate ? `Edit ${config.name} Estimate #${estimate.estimate_number}` : `New ${config.name} Estimate`}
+            {invoice ? `Edit ${config.name} Invoice #${invoice.invoice_number}` : 
+             estimate ? `Convert Estimate to ${config.name} Invoice` : 
+             `New ${config.name} Invoice`}
           </h2>
         </div>
         <button
@@ -222,27 +244,43 @@ const TradeSpecificEstimate: React.FC<TradeSpecificEstimateProps> = ({ estimate,
         </div>
       </div>
 
-      {/* Notes, Expiry, and Status */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+      {/* Notes, Due Date, Payment Terms, and Status */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
         <div>
           <label className="block text-sm font-medium text-slate-700 mb-1">Notes</label>
           <textarea
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
-            placeholder="Additional notes for the estimate..."
+            placeholder="Additional notes for the invoice..."
             className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             rows={3}
           />
         </div>
         
         <div>
-          <label className="block text-sm font-medium text-slate-700 mb-1">Expires On</label>
+          <label className="block text-sm font-medium text-slate-700 mb-1">Due Date *</label>
           <input
             type="date"
-            value={expiresAt}
-            onChange={(e) => setExpiresAt(e.target.value)}
+            value={dueDate}
+            onChange={(e) => setDueDate(e.target.value)}
             className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            required
           />
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-slate-700 mb-1">Payment Terms</label>
+          <select
+            value={paymentTerms}
+            onChange={(e) => setPaymentTerms(e.target.value)}
+            className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          >
+            <option value="Net 15">Net 15</option>
+            <option value="Net 30">Net 30</option>
+            <option value="Net 45">Net 45</option>
+            <option value="Net 60">Net 60</option>
+            <option value="Due on Receipt">Due on Receipt</option>
+          </select>
         </div>
 
         <div>
@@ -254,9 +292,9 @@ const TradeSpecificEstimate: React.FC<TradeSpecificEstimateProps> = ({ estimate,
           >
             <option value="draft">Draft</option>
             <option value="sent">Sent</option>
-            <option value="approved">Approved</option>
-            <option value="rejected">Rejected</option>
-            <option value="expired">Expired</option>
+            <option value="paid">Paid</option>
+            <option value="overdue">Overdue</option>
+            <option value="cancelled">Cancelled</option>
           </select>
         </div>
       </div>
@@ -279,18 +317,18 @@ const TradeSpecificEstimate: React.FC<TradeSpecificEstimateProps> = ({ estimate,
       </div>
 
       {/* Line Items */}
-      <div className="space-y-4 mb-6">
-        <div className="flex items-center justify-between">
+      <div className="mb-6">
+        <div className="flex items-center justify-between mb-4">
           <h3 className="font-medium text-slate-900">Line Items</h3>
           <button
             onClick={addLineItem}
-            className="flex items-center space-x-2 text-blue-600 hover:text-blue-800"
+            className="flex items-center space-x-1 text-blue-600 hover:text-blue-800 text-sm"
           >
             <Plus size={16} />
             <span>Add Item</span>
           </button>
         </div>
-
+        
         <div className="space-y-3">
           {lineItems.map((item, index) => (
             <div key={index} className="grid grid-cols-12 gap-3 items-center p-3 border border-slate-200 rounded-lg">
@@ -300,15 +338,39 @@ const TradeSpecificEstimate: React.FC<TradeSpecificEstimateProps> = ({ estimate,
                   placeholder="Description"
                   value={item.description}
                   onChange={(e) => updateLineItem(index, 'description', e.target.value)}
-                  className="w-full px-2 py-1 border border-slate-300 rounded text-sm"
-                  required
+                  className="w-full px-3 py-2 border border-slate-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 />
               </div>
+              
+              <div className="col-span-2">
+                <input
+                  type="number"
+                  placeholder="Qty"
+                  value={item.quantity}
+                  onChange={(e) => updateLineItem(index, 'quantity', Number(e.target.value))}
+                  className="w-full px-3 py-2 border border-slate-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  min="0"
+                  step="0.01"
+                />
+              </div>
+              
+              <div className="col-span-2">
+                <input
+                  type="number"
+                  placeholder="Price"
+                  value={item.unit_price}
+                  onChange={(e) => updateLineItem(index, 'unit_price', Number(e.target.value))}
+                  className="w-full px-3 py-2 border border-slate-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  min="0"
+                  step="0.01"
+                />
+              </div>
+              
               <div className="col-span-2">
                 <select
                   value={item.category}
                   onChange={(e) => updateLineItem(index, 'category', e.target.value)}
-                  className="w-full px-2 py-1 border border-slate-300 rounded text-sm"
+                  className="w-full px-3 py-2 border border-slate-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 >
                   <option value="Labor">Labor</option>
                   <option value="Materials">Materials</option>
@@ -317,118 +379,105 @@ const TradeSpecificEstimate: React.FC<TradeSpecificEstimateProps> = ({ estimate,
                   <option value="Other">Other</option>
                 </select>
               </div>
-              <div className="col-span-2">
-                <input
-                  type="number"
-                  placeholder="Qty"
-                  value={item.quantity}
-                  onChange={(e) => updateLineItem(index, 'quantity', parseFloat(e.target.value) || 0)}
-                  className="w-full px-2 py-1 border border-slate-300 rounded text-sm"
-                  min="0"
-                  step="0.01"
-                />
-              </div>
-              <div className="col-span-2">
-                <input
-                  type="number"
-                  placeholder="Unit Price"
-                  value={item.unit_price}
-                  onChange={(e) => updateLineItem(index, 'unit_price', parseFloat(e.target.value) || 0)}
-                  className="w-full px-2 py-1 border border-slate-300 rounded text-sm"
-                  min="0"
-                  step="0.01"
-                  required
-                />
-              </div>
+              
               <div className="col-span-1 text-right font-medium">
                 ${(item.quantity * item.unit_price).toFixed(2)}
               </div>
+              
               <div className="col-span-1">
-                {lineItems.length > 1 && (
-                  <button
-                    onClick={() => removeLineItem(index)}
-                    className="text-red-600 hover:text-red-800"
-                  >
-                    <Trash2 size={16} />
-                  </button>
-                )}
+                <button
+                  onClick={() => removeLineItem(index)}
+                  className="text-red-600 hover:text-red-800"
+                  disabled={lineItems.length === 1}
+                >
+                  <Trash2 size={16} />
+                </button>
               </div>
             </div>
           ))}
         </div>
       </div>
 
-      {/* Totals */}
-      <div className="border-t border-slate-200 pt-4">
-        <div className="grid grid-cols-2 gap-4 mb-4">
-          <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">Tax Rate (%)</label>
-            <input
-              type="number"
-              step="0.01"
-              value={taxRate}
-              onChange={(e) => setTaxRate(parseFloat(e.target.value) || 0)}
-              className="w-full px-3 py-2 border border-slate-300 rounded-lg"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">Discount ($)</label>
-            <input
-              type="number"
-              step="0.01"
-              value={discount}
-              onChange={(e) => setDiscount(parseFloat(e.target.value) || 0)}
-              className="w-full px-3 py-2 border border-slate-300 rounded-lg"
-              min="0"
-            />
-          </div>
+      {/* Tax and Discount */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+        <div>
+          <label className="block text-sm font-medium text-slate-700 mb-1">Tax Rate (%)</label>
+          <input
+            type="number"
+            value={taxRate}
+            onChange={(e) => setTaxRate(Number(e.target.value))}
+            className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            min="0"
+            max="100"
+            step="0.01"
+          />
         </div>
+        
+        <div>
+          <label className="block text-sm font-medium text-slate-700 mb-1">Discount ($)</label>
+          <input
+            type="number"
+            value={discount}
+            onChange={(e) => setDiscount(Number(e.target.value))}
+            className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            min="0"
+            step="0.01"
+          />
+        </div>
+      </div>
 
-        <div className="space-y-2 text-right">
-          <div className="flex justify-between">
-            <span>Subtotal:</span>
-            <span>${subtotal.toFixed(2)}</span>
+      {/* Totals */}
+      <div className="bg-slate-50 p-4 rounded-lg mb-6">
+        <div className="space-y-2">
+          <div className="flex justify-between text-sm">
+            <span className="text-slate-600">Subtotal</span>
+            <span className="text-slate-900">${subtotal.toFixed(2)}</span>
+          </div>
+          <div className="flex justify-between text-sm">
+            <span className="text-slate-600">Tax ({taxRate}%)</span>
+            <span className="text-slate-900">${taxAmount.toFixed(2)}</span>
           </div>
           {discount > 0 && (
-            <div className="flex justify-between text-green-600">
-              <span>Discount:</span>
-              <span>-${discount.toFixed(2)}</span>
+            <div className="flex justify-between text-sm">
+              <span className="text-slate-600">Discount</span>
+              <span className="text-green-600">-${discount.toFixed(2)}</span>
             </div>
           )}
-          <div className="flex justify-between">
-            <span>Tax ({taxRate}%):</span>
-            <span>${taxAmount.toFixed(2)}</span>
-          </div>
-          <div className="flex justify-between text-lg font-bold border-t border-slate-200 pt-2">
-            <span>Total:</span>
+          <div className="flex justify-between font-semibold pt-2 border-t border-slate-200">
+            <span>Total</span>
             <span>${total.toFixed(2)}</span>
           </div>
         </div>
+      </div>
 
-        <div className="flex justify-end space-x-3 mt-6">
-          <button
-            onClick={onCancel}
-            className="px-4 py-2 text-slate-600 border border-slate-300 rounded-lg hover:bg-slate-50"
-            disabled={loading}
-          >
-            Cancel
-          </button>
-          <button
-            onClick={handleSave}
-            disabled={loading || !selectedCustomer}
-            className="flex items-center space-x-2 bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {loading ? (
+      {/* Action Buttons */}
+      <div className="flex items-center justify-end space-x-3">
+        <button
+          onClick={onCancel}
+          className="px-4 py-2 text-slate-600 border border-slate-300 rounded-lg hover:bg-slate-50"
+        >
+          Cancel
+        </button>
+        <button
+          onClick={handleSave}
+          disabled={loading}
+          className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
+        >
+          {loading ? (
+            <>
               <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-            ) : (
+              <span>Saving...</span>
+            </>
+          ) : (
+            <>
               <Save size={16} />
-            )}
-            <span>{loading ? 'Saving...' : 'Save Estimate'}</span>
-          </button>
-        </div>
+              <span>Save Invoice</span>
+            </>
+          )}
+        </button>
       </div>
     </div>
   );
 };
 
-export default TradeSpecificEstimate;
+export default TradeSpecificInvoice;

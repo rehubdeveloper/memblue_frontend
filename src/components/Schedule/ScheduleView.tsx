@@ -210,26 +210,26 @@ const ScheduleView = () => {
         </div>
         
         <div className="flex items-center space-x-4">
-          <button
-            onClick={() => setViewMode('week')}
+            <button
+              onClick={() => setViewMode('week')}
             className={`px-4 py-2 rounded-lg font-medium text-sm ${
               viewMode === 'week' 
                 ? 'bg-blue-600 text-white' 
                 : 'bg-white text-gray-700 hover:bg-gray-50'
-            }`}
-          >
-            Week
-          </button>
-          <button
-            onClick={() => setViewMode('day')}
+              }`}
+            >
+              Week
+            </button>
+            <button
+              onClick={() => setViewMode('day')}
             className={`px-4 py-2 rounded-lg font-medium text-sm ${
               viewMode === 'day' 
                 ? 'bg-blue-600 text-white' 
                 : 'bg-white text-gray-700 hover:bg-gray-50'
-            }`}
-          >
-            Day
-          </button>
+              }`}
+            >
+              Day
+            </button>
           
           <button
             onClick={() => setShowFilters(!showFilters)}
@@ -372,13 +372,13 @@ const ScheduleView = () => {
               >
                 Apply Filters
               </button>
-              <button
+        <button
                 onClick={clearFilters}
                 className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors"
-              >
+        >
                 Clear
-              </button>
-            </div>
+        </button>
+      </div>
           </div>
         </div>
       )}
@@ -408,7 +408,7 @@ const ScheduleView = () => {
                   <div className="animate-pulse">
                     <div className="h-4 bg-gray-200 rounded mb-2"></div>
                     <div className="h-4 bg-gray-200 rounded"></div>
-                  </div>
+            </div>
                 ) : getJobsForDay(day).length > 0 ? (
                   getJobsForDay(day).map(job => (
                     <div
@@ -430,10 +430,10 @@ const ScheduleView = () => {
                                  ) : (
                    <div className="text-center text-gray-400 text-sm py-8">
                      {isTeamMember ? 'No jobs assigned to you' : 'No jobs scheduled'}
-                   </div>
-                 )}
+                    </div>
+                  )}
+                </div>
               </div>
-            </div>
           ))}
         </div>
       </div>
@@ -453,7 +453,7 @@ const ScheduleView = () => {
             <div key={status} className="flex items-center space-x-2">
               <div className={`w-3 h-3 rounded-full ${getStatusColor(status).split(' ')[0]}`}></div>
               <span className="text-sm text-gray-700">{label}</span>
-            </div>
+        </div>
           ))}
         </div>
       </div>

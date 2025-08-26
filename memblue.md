@@ -598,7 +598,100 @@ Returns a list of all work orders (jobs) for the specified customer.
 
 ---
 
-### 7. 👥 Team Management
+### 7\. 📅 Schedule Management
+
+> **Note:**
+> The schedule endpoint returns all work orders with full details for calendar/schedule display.
+> Supports filtering by date range, status, and assigned user.
+> Perfect for calendar components and schedule views.
+
+#### a. Get Schedule/Calendar View
+
+**URL:** `/api/users/schedule/`  
+**Method:** `GET`  
+**Auth required:** ✅ YES
+
+**Query Parameters:**
+- `start_date` (optional): Filter jobs from this date onwards (YYYY-MM-DD)
+- `end_date` (optional): Filter jobs up to this date (YYYY-MM-DD)
+- `status` (optional): Filter by job status
+- `assigned_to` (optional): Filter by assigned user ID
+
+##### Example Requests:
+
+**Get All Jobs:**
+```bash
+GET /api/users/schedule/
+Authorization: Token <your_token>
+```
+
+**Get Jobs for Date Range:**
+```bash
+GET /api/users/schedule/?start_date=2025-08-24&end_date=2025-08-30
+Authorization: Token <your_token>
+```
+
+**Get Only Confirmed Jobs:**
+```bash
+GET /api/users/schedule/?status=confirmed
+Authorization: Token <your_token>
+```
+
+**Get Jobs Assigned to Specific User:**
+```bash
+GET /api/users/schedule/?assigned_to=12
+Authorization: Token <your_token>
+```
+
+##### Example Successful Response:
+
+```json
+{
+  "work_orders": [
+    {
+      "id": 1,
+      "job_number": "Job-#1",
+      "job_type": "Maintenance",
+      "description": "Quarterly system inspection",
+      "status": "confirmed",
+      "priority": "medium",
+      "customer": 1,
+      "customer_name": "John Smith",
+      "created_by": 10,
+      "created_by_username": "adminuser",
+      "created_by_user_code": "123456",
+      "assigned_to": 12,
+      "created_at": "2025-08-24T10:00:00Z",
+      "scheduled_for": "2025-08-25T10:00:00Z",
+      "progress_current": 0,
+      "progress_total": 5,
+      "primary_trade": "hvac_pro",
+      "amount": "250.00",
+      "address": "123 Main St, Memphis, TN",
+      "owner": 1
+    }
+  ],
+  "total_count": 15,
+  "filters_applied": {
+    "start_date": "2025-08-24",
+    "end_date": "2025-08-30",
+    "status": "confirmed",
+    "assigned_to": "12"
+  },
+  "summary": {
+    "pending": 3,
+    "confirmed": 5,
+    "en_route": 2,
+    "in_progress": 4,
+    "completed": 1,
+    "cancelled": 0
+  }
+}
+```
+
+---
+
+### 8. 👥 Team Management
 
 > **Note:**
 > Team features are available for users registered as `team_business`. The registering user is the team admin. Team members can be invited, onboarded, and managed by the admin. Job creation permissions can be granted or revoked by the admin.
@@ -916,6 +1009,7 @@ Returns key business metrics for the team.
 | `CustomerJobHistoryView` | `customer-job-history` | `/api/users/customers/<id>/jobs/` |
 | `WorkOrderListCreateView` | `workorder-list-create` | `/api/users/work-orders/` |
 | `WorkOrderRetrieveUpdateDestroyView` | `workorder-detail` | `/api/users/work-orders/<id>/` |
+| `ScheduleView` | `schedule` | `/api/users/schedule/` |
 | `TeamMemberInviteView` | `team-invite` | `/api/users/team/invite/` |
 | `TeamMemberOnboardingView` | `team-onboarding` | `/api/users/team/onboarding/<uuid:invite_token>/` |
 | `TeamMemberListingView` | `team-members` | `/api/users/team/members/` |
@@ -972,5 +1066,6 @@ Returns key business metrics for the team.
 - See `drf_token_auth_workflow.txt` for a detailed explanation of token authentication and best practices.
 - The admin dashboard metrics endpoint returns comprehensive business analytics for team admins.
 - All URLs are prefixed with `/api/users/` as configured in the main URL configuration.
+- The schedule endpoint is perfect for calendar/schedule UI components with full filtering capabilities.
 
 ---

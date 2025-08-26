@@ -95,15 +95,15 @@ const ReportsView = () => {
 
     // Jobs by status
     const jobsByStatus = workOrders.reduce((acc, job) => {
-      acc[job.status] = (acc[job.status] || 0) + 1;
-      return acc;
-    }, {} as Record<string, number>);
+    acc[job.status] = (acc[job.status] || 0) + 1;
+    return acc;
+  }, {} as Record<string, number>);
 
     // Jobs by type
     const jobsByType = workOrders.reduce((acc, job) => {
       acc[job.job_type] = (acc[job.job_type] || 0) + 1;
-      return acc;
-    }, {} as Record<string, number>);
+    return acc;
+  }, {} as Record<string, number>);
 
     // Calculate date range metrics
     const daysAgo = parseInt(dateRange);
@@ -325,16 +325,16 @@ const ReportsView = () => {
       {/* Overview Tab */}
       {activeTab === 'overview' && (
         <>
-          {/* Key Metrics */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+      {/* Key Metrics */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
             <div className="bg-white rounded-lg p-6 shadow-sm border">
-              <div className="flex items-center justify-between mb-4">
-                <div className="p-3 rounded-lg bg-blue-500">
-                  <BarChart3 className="text-white" size={20} />
-                </div>
+          <div className="flex items-center justify-between mb-4">
+            <div className="p-3 rounded-lg bg-blue-500">
+              <BarChart3 className="text-white" size={20} />
+            </div>
                 {dashboardMetrics && getTrendIcon(dashboardMetrics.jobs_trend)}
-              </div>
-              <div>
+          </div>
+          <div>
                 <p className="text-2xl font-bold text-gray-900 mb-1">
                   {dashboardMetrics?.jobs_today || workOrderMetrics.jobsInRange}
                 </p>
@@ -346,17 +346,17 @@ const ReportsView = () => {
                     {dashboardMetrics.jobs_diff > 0 ? '+' : ''}{dashboardMetrics.jobs_diff} from yesterday
                   </p>
                 )}
-              </div>
-            </div>
+          </div>
+        </div>
 
             <div className="bg-white rounded-lg p-6 shadow-sm border">
-              <div className="flex items-center justify-between mb-4">
-                <div className="p-3 rounded-lg bg-green-500">
-                  <DollarSign className="text-white" size={20} />
-                </div>
+          <div className="flex items-center justify-between mb-4">
+            <div className="p-3 rounded-lg bg-green-500">
+              <DollarSign className="text-white" size={20} />
+            </div>
                 {dashboardMetrics && getTrendIcon(dashboardMetrics.jobs_trend)}
-              </div>
-              <div>
+          </div>
+          <div>
                 <p className="text-2xl font-bold text-gray-900 mb-1">
                   ${(dashboardMetrics?.revenue_this_month || workOrderMetrics.revenueInRange).toLocaleString()}
                 </p>
@@ -368,17 +368,17 @@ const ReportsView = () => {
                     {dashboardMetrics.revenue_change_pct > 0 ? '+' : ''}{dashboardMetrics.revenue_change_pct}% from last month
                   </p>
                 )}
-              </div>
-            </div>
+          </div>
+        </div>
 
             <div className="bg-white rounded-lg p-6 shadow-sm border">
-              <div className="flex items-center justify-between mb-4">
-                <div className="p-3 rounded-lg bg-purple-500">
-                  <Users className="text-white" size={20} />
-                </div>
-                <TrendingUp className="text-green-500" size={16} />
-              </div>
-              <div>
+          <div className="flex items-center justify-between mb-4">
+            <div className="p-3 rounded-lg bg-purple-500">
+              <Users className="text-white" size={20} />
+            </div>
+            <TrendingUp className="text-green-500" size={16} />
+          </div>
+          <div>
                 <p className="text-2xl font-bold text-gray-900 mb-1">
                   {dashboardMetrics?.active_customers || customerMetrics.totalCustomers}
                 </p>
@@ -388,17 +388,17 @@ const ReportsView = () => {
                 <p className="text-xs text-green-600">
                   {customerMetrics.customersWithJobs} with jobs
                 </p>
-              </div>
-            </div>
+          </div>
+        </div>
 
             <div className="bg-white rounded-lg p-6 shadow-sm border">
-              <div className="flex items-center justify-between mb-4">
-                <div className="p-3 rounded-lg bg-orange-500">
-                  <Calendar className="text-white" size={20} />
-                </div>
-                <TrendingUp className="text-green-500" size={16} />
-              </div>
-              <div>
+          <div className="flex items-center justify-between mb-4">
+            <div className="p-3 rounded-lg bg-orange-500">
+              <Calendar className="text-white" size={20} />
+            </div>
+            <TrendingUp className="text-green-500" size={16} />
+          </div>
+          <div>
                 <p className="text-2xl font-bold text-gray-900 mb-1">
                   ${workOrderMetrics.averageJobValue.toFixed(0)}
                 </p>
@@ -406,9 +406,9 @@ const ReportsView = () => {
                 <p className="text-xs text-green-600">
                   {workOrderMetrics.completedJobs} completed
                 </p>
-              </div>
-            </div>
           </div>
+        </div>
+      </div>
 
           {/* Alerts Section */}
           {dashboardMetrics?.alerts && (
@@ -518,61 +518,61 @@ const ReportsView = () => {
       {/* Jobs Tab */}
       {activeTab === 'jobs' && (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Job Status Distribution */}
+        {/* Job Status Distribution */}
           <div className="bg-white rounded-lg p-6 shadow-sm border">
             <h3 className="text-lg font-semibold text-gray-900 mb-4">Job Status Distribution</h3>
             {Object.keys(workOrderMetrics.jobsByStatus).length > 0 ? (
-              <div className="space-y-3">
+          <div className="space-y-3">
                 {Object.entries(workOrderMetrics.jobsByStatus).map(([status, count]) => {
                   const percentage = workOrderMetrics.totalJobs > 0 ? (count / workOrderMetrics.totalJobs) * 100 : 0;
-                  return (
-                    <div key={status}>
-                      <div className="flex justify-between items-center mb-1">
+              return (
+                <div key={status}>
+                  <div className="flex justify-between items-center mb-1">
                         <span className="text-sm font-medium text-gray-700 capitalize">
                           {status.replace('_', ' ')}
-                        </span>
+                    </span>
                         <span className="text-sm text-gray-600">{count} ({percentage.toFixed(0)}%)</span>
-                      </div>
+                  </div>
                       <div className="w-full bg-gray-200 rounded-full h-2">
-                        <div
-                          className="bg-blue-600 h-2 rounded-full transition-all"
-                          style={{ width: `${percentage}%` }}
-                        ></div>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
+                    <div
+                      className="bg-blue-600 h-2 rounded-full transition-all"
+                      style={{ width: `${percentage}%` }}
+                    ></div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
             ) : (
               <div className="text-center py-8 text-gray-500">
                 <BarChart3 className="mx-auto mb-2" size={24} />
                 <p>No jobs found</p>
               </div>
             )}
-          </div>
+        </div>
 
-          {/* Job Types */}
+        {/* Job Types */}
           <div className="bg-white rounded-lg p-6 shadow-sm border">
             <h3 className="text-lg font-semibold text-gray-900 mb-4">Job Types</h3>
             {Object.keys(workOrderMetrics.jobsByType).length > 0 ? (
-              <div className="space-y-3">
+          <div className="space-y-3">
                 {Object.entries(workOrderMetrics.jobsByType).map(([type, count]) => {
                   const percentage = workOrderMetrics.totalJobs > 0 ? (count / workOrderMetrics.totalJobs) * 100 : 0;
-                  return (
-                    <div key={type}>
-                      <div className="flex justify-between items-center mb-1">
+              return (
+                <div key={type}>
+                  <div className="flex justify-between items-center mb-1">
                         <span className="text-sm font-medium text-gray-700">{type}</span>
                         <span className="text-sm text-gray-600">{count} ({percentage.toFixed(0)}%)</span>
-                      </div>
+                  </div>
                       <div className="w-full bg-gray-200 rounded-full h-2">
-                        <div
-                          className="bg-green-600 h-2 rounded-full transition-all"
-                          style={{ width: `${percentage}%` }}
-                        ></div>
-                      </div>
-                    </div>
-                  );
-                })}
+                    <div
+                      className="bg-green-600 h-2 rounded-full transition-all"
+                      style={{ width: `${percentage}%` }}
+                    ></div>
+                  </div>
+                </div>
+              );
+            })}
               </div>
             ) : (
               <div className="text-center py-8 text-gray-500">
@@ -586,19 +586,19 @@ const ReportsView = () => {
 
       {/* Customers Tab */}
       {activeTab === 'customers' && (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Top Customers */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Top Customers */}
           <div className="bg-white rounded-lg p-6 shadow-sm border">
             <h3 className="text-lg font-semibold text-gray-900 mb-4">Top Customers by Revenue</h3>
             {customerMetrics.topCustomers && customerMetrics.topCustomers.length > 0 ? (
-              <div className="space-y-3">
+          <div className="space-y-3">
                 {customerMetrics.topCustomers.map((customer, index) => (
                   <div key={customer.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                    <div className="flex items-center space-x-3">
-                      <div className="flex items-center justify-center w-8 h-8 bg-blue-500 text-white rounded-full text-sm font-semibold">
-                        {index + 1}
-                      </div>
-                      <div>
+                <div className="flex items-center space-x-3">
+                  <div className="flex items-center justify-center w-8 h-8 bg-blue-500 text-white rounded-full text-sm font-semibold">
+                    {index + 1}
+                  </div>
+                  <div>
                         <p className="font-medium text-gray-900">{customer.name}</p>
                         <p className="text-sm text-gray-600">{customer.jobCount} jobs</p>
                       </div>
@@ -660,32 +660,32 @@ const ReportsView = () => {
           {/* Inventory Status */}
           <div className="bg-white rounded-lg p-6 shadow-sm border">
             <h3 className="text-lg font-semibold text-gray-900 mb-4">Inventory Status</h3>
-            <div className="space-y-4">
+          <div className="space-y-4">
               {inventoryMetrics.lowStockItems > 0 && (
-                <div className="flex items-center justify-between p-3 bg-red-50 border border-red-200 rounded-lg">
-                  <div>
-                    <p className="font-medium text-red-900">Low Stock Items</p>
+            <div className="flex items-center justify-between p-3 bg-red-50 border border-red-200 rounded-lg">
+              <div>
+                <p className="font-medium text-red-900">Low Stock Items</p>
                     <p className="text-sm text-red-700">{inventoryMetrics.lowStockItems} items need reordering</p>
-                  </div>
-                  <div className="text-2xl font-bold text-red-600">{inventoryMetrics.lowStockItems}</div>
-                </div>
-              )}
-              
-              <div className="flex items-center justify-between p-3 bg-green-50 border border-green-200 rounded-lg">
-                <div>
-                  <p className="font-medium text-green-900">Total Inventory Value</p>
-                  <p className="text-sm text-green-700">Current stock valuation</p>
-                </div>
-                <div className="text-2xl font-bold text-green-600">
-                  ${inventoryMetrics.totalValue.toLocaleString()}
-                </div>
               </div>
-              
-              <div className="flex items-center justify-between p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                <div>
-                  <p className="font-medium text-blue-900">Total Items</p>
-                  <p className="text-sm text-blue-700">Unique inventory items</p>
-                </div>
+                  <div className="text-2xl font-bold text-red-600">{inventoryMetrics.lowStockItems}</div>
+            </div>
+              )}
+            
+            <div className="flex items-center justify-between p-3 bg-green-50 border border-green-200 rounded-lg">
+              <div>
+                <p className="font-medium text-green-900">Total Inventory Value</p>
+                <p className="text-sm text-green-700">Current stock valuation</p>
+              </div>
+              <div className="text-2xl font-bold text-green-600">
+                  ${inventoryMetrics.totalValue.toLocaleString()}
+              </div>
+            </div>
+            
+            <div className="flex items-center justify-between p-3 bg-blue-50 border border-blue-200 rounded-lg">
+              <div>
+                <p className="font-medium text-blue-900">Total Items</p>
+                <p className="text-sm text-blue-700">Unique inventory items</p>
+              </div>
                 <div className="text-2xl font-bold text-blue-600">{inventoryMetrics.totalItems}</div>
               </div>
               
