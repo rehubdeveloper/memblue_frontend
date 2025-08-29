@@ -1,9 +1,10 @@
-import React, { useState, useEffect } from 'react';
-import { Plus, Search, Filter, MapPin, Clock, User, Phone, Wrench } from 'lucide-react';
+import React, { useState, useEffect, useMemo } from 'react';
+import { Plus, Search, Filter, MapPin, Clock, User, Phone, Wrench, MessageSquare, Settings } from 'lucide-react';
 import { mockJobs, mockCustomers, mockUsers, mockBusiness } from '../../data/mockData';
 import { tradeConfigs } from '../../data/tradeConfigs';
 import { Job } from '../../types';
 import { useAuth } from '../../context/AppContext';
+import InterviewJobForm from './InterviewJobForm';
 
 interface JobsListProps {
   onNewJob?: () => void;
@@ -12,7 +13,7 @@ interface JobsListProps {
 const statusOptions = [
   'pending',
   'confirmed',
-  'en_route',
+ 
   'in_progress',
   'completed',
   'cancelled',
@@ -105,7 +106,7 @@ const NewJobDialog: React.FC<NewJobDialogProps> = ({ open, onClose, onSubmit }) 
       >
         <div className="sticky top-0 bg-white border-b border-gray-200 px-4 sm:px-6 py-4 rounded-t-xl">
           <div className="flex items-center justify-between">
-            <h2 className="text-lg sm:text-xl font-bold text-gray-900">Create Work Order</h2>
+            <h2 className="text-lg sm:text-xl font-bold text-gray-900">Create Job</h2>
             <button
               onClick={onClose}
               className="text-gray-400 hover:text-gray-600 transition-colors p-1"
@@ -320,7 +321,7 @@ const NewJobDialog: React.FC<NewJobDialogProps> = ({ open, onClose, onSubmit }) 
                     Creating...
                   </div>
                 ) : (
-                  'Create Work Order'
+                  'Create Job'
                 )}
               </button>
               <button
@@ -342,17 +343,54 @@ const JobsList: React.FC<JobsListProps> = ({ onNewJob }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [priorityFilter, setPriorityFilter] = useState<string>('all');
-  const { workOrders, getWorkOrders, user, createWorkOrder, updateWorkOrder, deleteWorkOrder, teamMembers, getTeamMembers, customers, getCustomers } = useAuth();
+  const [activeTab, setActiveTab] = useState<'open' | 'work-orders'>('open');
+
+  // Check URL parameters for tab and showForm
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const tabParam = urlParams.get('tab');
+    const showFormParam = urlParams.get('showForm');
+    
+    if (tabParam === 'work-orders') {
+      setActiveTab('work-orders');
+    }
+    
+    if (showFormParam === 'true') {
+      setDialogOpen(true);
+    }
+  }, []);
+  const { workOrders, getWorkOrders, user, createWorkOrder, updateWorkOrder, deleteWorkOrder, teamMembers, getTeamMembers, customers, getCustomers, notifyJobCreated, notifyJobStatusChanged, notifyJobDeleted } = useAuth();
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [interviewFormOpen, setInterviewFormOpen] = useState(false);
+  const [showFormOptions, setShowFormOptions] = useState(false);
   const [detailsJob, setDetailsJob] = useState<null | any>(null);
   const [editMode, setEditMode] = useState(false);
   const [editForm, setEditForm] = useState<any>({});
 
+  // Close dropdown when clicking outside
   useEffect(() => {
-    getWorkOrders();
-    getTeamMembers();
-    getCustomers();
-  }, []);
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as Element;
+      if (!target.closest('.form-options-dropdown')) {
+        setShowFormOptions(false);
+      }
+    };
+
+    if (showFormOptions) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [showFormOptions]);
+
+  // Data is now loaded once in the context, no need to fetch here
+  // useEffect(() => {
+  //   getWorkOrders();
+  //   getTeamMembers();
+  //   getCustomers();
+  // }, []);
 
   const tradeConfig = tradeConfigs[user?.primary_trade || 'hvac'] || tradeConfigs['hvac'];
 
@@ -372,14 +410,30 @@ const JobsList: React.FC<JobsListProps> = ({ onNewJob }) => {
     return user?.role === 'admin' || user?.role === 'solo';
   };
 
-  const filteredJobs = (workOrders || []).filter(job => {
-    const matchesSearch = job.job_type.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      job.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (job.customer_name && job.customer_name.toLowerCase().includes(searchTerm.toLowerCase()));
-    const matchesStatus = statusFilter === 'all' || job.status === statusFilter;
-    const matchesPriority = priorityFilter === 'all' || job.priority === priorityFilter;
-    return matchesSearch && matchesStatus && matchesPriority;
-  });
+  // Separate jobs into Open Jobs and Work Orders using useMemo for performance
+  const { openJobs, workOrdersList } = useMemo(() => {
+    const open = (workOrders || []).filter((job: any) => 
+      ['confirmed', 'in_progress', 'in-progress', 'completed'].includes(job.status)
+    );
+    const workOrdersFiltered = (workOrders || []).filter((job: any) => 
+      ['pending', 'cancelled'].includes(job.status)
+    );
+    return { openJobs: open, workOrdersList: workOrdersFiltered };
+  }, [workOrders]);
+
+  // Filter jobs based on active tab using useMemo for performance
+  const filteredJobs = useMemo(() => {
+    const jobsToFilter = activeTab === 'open' ? openJobs : workOrdersList;
+    
+    return jobsToFilter.filter((job: any) => {
+      const matchesSearch = job.job_type.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        job.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (job.customer_name && job.customer_name.toLowerCase().includes(searchTerm.toLowerCase()));
+      const matchesStatus = statusFilter === 'all' || job.status === statusFilter;
+      const matchesPriority = priorityFilter === 'all' || job.priority === priorityFilter;
+      return matchesSearch && matchesStatus && matchesPriority;
+    });
+  }, [activeTab, openJobs, workOrdersList, searchTerm, statusFilter, priorityFilter]);
 
   const capitalize = (str: any) => {
     if (!str) return '';
@@ -390,7 +444,6 @@ const JobsList: React.FC<JobsListProps> = ({ onNewJob }) => {
     switch (status) {
       case 'pending': return 'bg-yellow-100 text-yellow-800';
       case 'confirmed': return 'bg-green-100 text-green-800';
-      case 'en-route': return 'bg-blue-100 text-blue-800';
       case 'in-progress': return 'bg-purple-100 text-purple-800';
       case 'completed': return 'bg-gray-100 text-gray-800';
       case 'cancelled': return 'bg-red-100 text-red-800';
@@ -454,8 +507,15 @@ const JobsList: React.FC<JobsListProps> = ({ onNewJob }) => {
   };
 
   const handleJobCreated = async (payload: any) => {
-    await createWorkOrder(payload);
-    await getWorkOrders();
+    const result = await createWorkOrder(payload);
+    await getWorkOrders(true);
+    
+    // Get customer name for notification
+    const customer = customers?.find((c: any) => c.id === payload.customer);
+    const customerName = customer ? customer.name : 'Unknown Customer';
+    
+    // Add notification for job creation
+    notifyJobCreated(result.job_number || `Job-${result.id}`, customerName);
   };
 
   const handleViewDetails = (job: any) => {
@@ -483,7 +543,18 @@ const JobsList: React.FC<JobsListProps> = ({ onNewJob }) => {
 
   const handleSaveEdit = async () => {
     try {
+      const oldStatus = detailsJob.status;
       await updateWorkOrder(detailsJob.id, editForm);
+      
+      // Check if status changed
+      if (editForm.status && editForm.status !== oldStatus) {
+        notifyJobStatusChanged(
+          detailsJob.job_number || `Job-${detailsJob.id}`,
+          oldStatus,
+          editForm.status
+        );
+      }
+      
       setEditMode(false);
       handleCloseDetails();
     } catch (error) {
@@ -492,9 +563,11 @@ const JobsList: React.FC<JobsListProps> = ({ onNewJob }) => {
   };
 
   const handleDelete = async () => {
-    if (window.confirm('Are you sure you want to delete this work order?')) {
+    if (window.confirm('Are you sure you want to delete this job?')) {
       try {
+        const jobNumber = detailsJob.job_number || `Job-${detailsJob.id}`;
         await deleteWorkOrder(detailsJob.id);
+        notifyJobDeleted(jobNumber);
         handleCloseDetails();
       } catch (error) {
         // Error handled by context
@@ -506,31 +579,203 @@ const JobsList: React.FC<JobsListProps> = ({ onNewJob }) => {
     setEditForm((prev: any) => ({ ...prev, [field]: value }));
   };
 
+  const renderJobCard = (job: any) => (
+    <div key={job.id} className="bg-white rounded-lg p-4 lg:p-6 shadow-sm border border-slate-200 hover:shadow-md transition-shadow">
+      <div className="flex flex-col lg:flex-row lg:items-start justify-between mb-4 gap-4">
+        <div className="flex-1 min-w-0">
+          <div className="flex flex-wrap items-center gap-2 mb-2">
+            <span className="text-lg">{tradeConfig.icon}</span>
+            <h3 className="text-base lg:text-lg font-semibold text-slate-900">{job.job_type}</h3>
+            <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${getStatusColor(job.status)}`}>
+              {job.status.replace('-', ' ')}
+            </span>
+            <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${getPriorityColor(job.priority)}`}>
+              {job.priority.toUpperCase()}
+            </span>
+          </div>
+          <p className="text-slate-600 mb-3 text-sm lg:text-base">{job.description}</p>
+        </div>
+        <div className="text-left lg:text-right flex-shrink-0">
+          <p className="text-sm text-slate-500">Job #{job.job_number}</p>
+          <p className="text-sm text-slate-500">
+            Created {new Date(job.created_at).toLocaleDateString()}
+          </p>
+        </div>
+      </div>
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+        <div className="flex items-center space-x-2">
+          <User className="text-slate-400 flex-shrink-0" size={16} />
+          <div className="min-w-0 flex-1">
+            <p className="font-medium text-slate-900 text-sm lg:text-base truncate">
+              {(() => {
+                const customer = customers?.find((c: any) => c.id === job.customer);
+                return customer ? customer.name : (job.customer_name && job.customer_name.trim() !== '' ? job.customer_name : 'Unknown Customer');
+              })()}
+            </p>
+            <p className="text-xs text-slate-600 truncate">Customer</p>
+          </div>
+        </div>
+        <div className="flex items-center space-x-2">
+          <MapPin className="text-slate-400 flex-shrink-0" size={16} />
+          <div className="min-w-0 flex-1">
+            <p className="text-sm text-slate-900 truncate">
+              {job.address && job.address.trim() !== '' ? job.address : 'No address'}
+            </p>
+            <p className="text-xs text-slate-600 truncate">Location</p>
+          </div>
+        </div>
+        <div className="flex items-center space-x-2">
+          <Wrench className="text-slate-400 flex-shrink-0" size={16} />
+          <div className="min-w-0 flex-1">
+            <p className="text-sm text-slate-900 truncate">
+              {job.assigned_to ? (() => {
+                const member = teamMembers?.find((m: any) => m.id === job.assigned_to);
+                return member ? `${member.first_name} ${member.last_name}` : `Member ${job.assigned_to}`;
+              })() : 'Unassigned'}
+            </p>
+            <p className="text-xs text-slate-600 truncate">Assigned To</p>
+          </div>
+        </div>
+      </div>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div className="flex items-center space-x-2">
+          <Clock className="text-slate-400 flex-shrink-0" size={16} />
+          <div>
+            <p className="text-sm text-slate-900">
+              {new Date(job.scheduled_for).toLocaleDateString()}
+            </p>
+            <p className="text-sm text-slate-600">
+              {new Date(job.scheduled_for).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+            </p>
+          </div>
+        </div>
+        <div className="flex flex-col sm:flex-row gap-2">
+          <button
+            className="text-blue-600 hover:text-blue-800 text-sm font-medium px-3 py-1 rounded border border-blue-200 hover:bg-blue-50"
+            onClick={() => handleViewDetails(job)}
+          >
+            View Details
+          </button>
+          {canEditJob(job) && (
+            <button
+              className="text-slate-600 hover:text-slate-800 text-sm font-medium px-3 py-1 rounded border border-slate-200 hover:bg-slate-50"
+              onClick={() => handleViewDetails(job)}
+            >
+              Edit
+            </button>
+          )}
+        </div>
+      </div>
+      {/* Progress Bar */}
+      <div className="mt-4 pt-4 border-t border-slate-200">
+        <div className="flex items-center justify-between mb-2">
+          <span className="text-sm text-slate-600">Progress</span>
+          <span className="text-sm text-slate-600">
+            {job.progress_total ? `${job.progress_current} / ${job.progress_total} tasks` : '0 / 0 tasks'}
+          </span>
+        </div>
+        <div className="w-full bg-slate-200 rounded-full h-2">
+          <div
+            className="bg-blue-600 h-2 rounded-full transition-all"
+            style={{
+              width: `${(job.progress_total ? (job.progress_current / job.progress_total) * 100 : 0)}%`
+            }}
+          ></div>
+        </div>
+      </div>
+    </div>
+  );
+
   return (
     <div className="p-4 lg:p-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-4 lg:mb-6 gap-4">
         <div className="flex items-center space-x-3">
           <span className="text-2xl">{tradeConfig.icon}</span>
           <div>
-            <h1 className="text-xl lg:text-2xl font-bold text-slate-900">{capitalize(user?.primary_trade)} Work Orders</h1>
+            <h1 className="text-xl lg:text-2xl font-bold text-slate-900">{capitalize(user?.primary_trade)} Jobs</h1>
             <p className="text-slate-600 text-sm lg:text-base">Manage and track all {user?.primary_trade.toLowerCase()} service jobs</p>
           </div>
         </div>
 
         {canCreateJobs && (
-          <button
-            onClick={() => setDialogOpen(true)}
-            className="flex items-center justify-center space-x-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 w-full sm:w-auto"
-          >
-            <Plus size={16} />
-            <span>New {capitalize(user?.primary_trade)} Job</span>
-          </button>
+          <div className="relative">
+            <button
+              onClick={() => setShowFormOptions(!showFormOptions)}
+              className="flex items-center justify-center space-x-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 w-full sm:w-auto"
+            >
+              <Plus size={16} />
+              <span>New {capitalize(user?.primary_trade)} Job</span>
+            </button>
+            
+            {/* Form Options Dropdown */}
+            {showFormOptions && (
+              <div className="form-options-dropdown absolute top-full left-0 mt-2 w-64 bg-white rounded-lg shadow-lg border border-gray-200 z-10">
+                <div className="p-2">
+                  <button
+                    onClick={() => {
+                      setInterviewFormOpen(true);
+                      setShowFormOptions(false);
+                    }}
+                    className="w-full flex items-center space-x-3 p-3 text-left rounded-lg hover:bg-gray-50 transition-colors"
+                  >
+                    <MessageSquare size={16} className="text-blue-600" />
+                    <div>
+                      <div className="font-medium text-gray-900">Simple Form</div>
+                      <div className="text-sm text-gray-600">Step-by-step guided creation</div>
+                    </div>
+                  </button>
+                  
+                  <button
+                    onClick={() => {
+                      setDialogOpen(true);
+                      setShowFormOptions(false);
+                    }}
+                    className="w-full flex items-center space-x-3 p-3 text-left rounded-lg hover:bg-gray-50 transition-colors"
+                  >
+                    <Settings size={16} className="text-gray-600" />
+                    <div>
+                      <div className="font-medium text-gray-900">Advanced Form</div>
+                      <div className="text-sm text-gray-600">All fields at once</div>
+                    </div>
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
         )}
       </div>
-      <NewJobDialog open={dialogOpen} onClose={() => setDialogOpen(false)} onSubmit={createWorkOrder} />
+             <NewJobDialog open={dialogOpen} onClose={() => setDialogOpen(false)} onSubmit={handleJobCreated} />
+             <InterviewJobForm 
+               isOpen={interviewFormOpen} 
+               onClose={() => setInterviewFormOpen(false)} 
+             />
 
-      {/* Filters */}
+      {/* Tab Navigation */}
       <div className="bg-white rounded-lg p-4 mb-4 lg:mb-6 shadow-sm border border-slate-200">
+        <div className="flex space-x-1 mb-4">
+          <button
+            onClick={() => setActiveTab('open')}
+            className={`flex-1 px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
+              activeTab === 'open'
+                ? 'bg-blue-100 text-blue-700 border border-blue-200'
+                : 'text-slate-600 hover:text-slate-800 hover:bg-slate-50'
+            }`}
+          >
+            Open Jobs ({openJobs.length})
+          </button>
+          <button
+            onClick={() => setActiveTab('work-orders')}
+            className={`flex-1 px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
+              activeTab === 'work-orders'
+                ? 'bg-blue-100 text-blue-700 border border-blue-200'
+                : 'text-slate-600 hover:text-slate-800 hover:bg-slate-50'
+            }`}
+          >
+            Work Orders ({workOrdersList.length})
+          </button>
+        </div>
+
+        {/* Filters */}
         <div className="flex flex-col lg:flex-row gap-4">
           <div className="flex-1">
             <div className="relative">
@@ -554,7 +799,7 @@ const JobsList: React.FC<JobsListProps> = ({ onNewJob }) => {
               <option value="all">All Statuses</option>
               <option value="pending">Pending</option>
               <option value="confirmed">Confirmed</option>
-              <option value="en-route">En Route</option>
+              
               <option value="in-progress">In Progress</option>
               <option value="completed">Completed</option>
               <option value="cancelled">Cancelled</option>
@@ -575,127 +820,30 @@ const JobsList: React.FC<JobsListProps> = ({ onNewJob }) => {
         </div>
       </div>
 
+      {/* Section Header */}
+      <div className="mb-4">
+        <h2 className="text-lg font-semibold text-slate-900">
+          {activeTab === 'open' ? 'Open Jobs' : 'Work Orders'}
+        </h2>
+                 <p className="text-sm text-slate-600">
+           {activeTab === 'open' 
+             ? 'Active jobs that are confirmed, in progress, or completed' 
+             : 'Pending jobs waiting to be started or cancelled jobs'
+           }
+         </p>
+      </div>
+
       {/* Jobs Grid */}
       <div className="grid gap-4">
-        {filteredJobs.map((job) => {
-          // const customer = getCustomerInfo(job.customerId); // Remove mock
-          // const technician = getTechnicianInfo(job.assignedUserId); // Remove mock
-          // const memphisArea = getMemphisArea(job.location); // Remove mock
-
-          return (
-            <div key={job.id} className="bg-white rounded-lg p-4 lg:p-6 shadow-sm border border-slate-200 hover:shadow-md transition-shadow">
-              <div className="flex flex-col lg:flex-row lg:items-start justify-between mb-4 gap-4">
-                <div className="flex-1 min-w-0">
-                  <div className="flex flex-wrap items-center gap-2 mb-2">
-                    <span className="text-lg">{tradeConfig.icon}</span>
-                    <h3 className="text-base lg:text-lg font-semibold text-slate-900">{job.job_type}</h3>
-                    <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${getStatusColor(job.status)}`}>
-                      {job.status.replace('-', ' ')}
-                    </span>
-                    <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${getPriorityColor(job.priority)}`}>
-                      {job.priority.toUpperCase()}
-                    </span>
-                  </div>
-                  <p className="text-slate-600 mb-3 text-sm lg:text-base">{job.description}</p>
-                  {/* Trade-specific data display: skip for now, as real jobs may not have tradeSpecificData */}
-                </div>
-                <div className="text-left lg:text-right flex-shrink-0">
-                  <p className="text-sm text-slate-500">Job #{job.job_number}</p>
-                  <p className="text-sm text-slate-500">
-                    Created {new Date(job.created_at).toLocaleDateString()}
-                  </p>
-                </div>
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-                <div className="flex items-center space-x-2">
-                  <User className="text-slate-400 flex-shrink-0" size={16} />
-                  <div className="min-w-0 flex-1">
-                    <p className="font-medium text-slate-900 text-sm lg:text-base truncate">
-                      {(() => {
-                        const customer = customers?.find((c: any) => c.id === job.customer);
-                        return customer ? customer.name : (job.customer_name && job.customer_name.trim() !== '' ? job.customer_name : 'Unknown Customer');
-                      })()}
-                    </p>
-                    <p className="text-xs text-slate-600 truncate">Customer</p>
-                  </div>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <MapPin className="text-slate-400 flex-shrink-0" size={16} />
-                  <div className="min-w-0 flex-1">
-                    <p className="text-sm text-slate-900 truncate">
-                      {job.address && job.address.trim() !== '' ? job.address : 'No address'}
-                    </p>
-                    <p className="text-xs text-slate-600 truncate">Location</p>
-                  </div>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <Wrench className="text-slate-400 flex-shrink-0" size={16} />
-                  <div className="min-w-0 flex-1">
-                    <p className="text-sm text-slate-900 truncate">
-                      {job.assigned_to ? (() => {
-                        const member = teamMembers?.find((m: any) => m.id === job.assigned_to);
-                        return member ? `${member.first_name} ${member.last_name}` : `Member ${job.assigned_to}`;
-                      })() : 'Unassigned'}
-                    </p>
-                    <p className="text-xs text-slate-600 truncate">Assigned To</p>
-                  </div>
-                </div>
-              </div>
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                <div className="flex items-center space-x-2">
-                  <Clock className="text-slate-400 flex-shrink-0" size={16} />
-                  <div>
-                    <p className="text-sm text-slate-900">
-                      {new Date(job.scheduled_for).toLocaleDateString()}
-                    </p>
-                    <p className="text-sm text-slate-600">
-                      {new Date(job.scheduled_for).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                    </p>
-                  </div>
-                </div>
-                <div className="flex flex-col sm:flex-row gap-2">
-                  <button
-                    className="text-blue-600 hover:text-blue-800 text-sm font-medium px-3 py-1 rounded border border-blue-200 hover:bg-blue-50"
-                    onClick={() => handleViewDetails(job)}
-                  >
-                    View Details
-                  </button>
-                  {canEditJob(job) && (
-                    <button
-                      className="text-slate-600 hover:text-slate-800 text-sm font-medium px-3 py-1 rounded border border-slate-200 hover:bg-slate-50"
-                      onClick={() => handleViewDetails(job)}
-                    >
-                      Edit
-                    </button>
-                  )}
-                </div>
-              </div>
-              {/* Progress Bar */}
-              <div className="mt-4 pt-4 border-t border-slate-200">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-sm text-slate-600">Progress</span>
-                  <span className="text-sm text-slate-600">
-                    {job.progress_total ? `${job.progress_current} / ${job.progress_total} tasks` : '0 / 0 tasks'}
-                  </span>
-                </div>
-                <div className="w-full bg-slate-200 rounded-full h-2">
-                  <div
-                    className="bg-blue-600 h-2 rounded-full transition-all"
-                    style={{
-                      width: `${(job.progress_total ? (job.progress_current / job.progress_total) * 100 : 0)}%`
-                    }}
-                  ></div>
-                </div>
-              </div>
-            </div>
-          );
-        })}
+        {filteredJobs.map(renderJobCard)}
       </div>
 
       {filteredJobs.length === 0 && (
         <div className="text-center py-12">
           <Wrench className="mx-auto text-slate-400 mb-4" size={48} />
-          <p className="text-slate-500 text-lg mb-4">No {tradeConfig.name?.toLowerCase()} work orders found</p>
+                     <p className="text-slate-500 text-lg mb-4">
+             No {activeTab === 'open' ? 'active jobs' : 'pending or cancelled jobs'} found
+           </p>
           <p className="text-slate-400">Try adjusting your search or filter criteria</p>
         </div>
       )}

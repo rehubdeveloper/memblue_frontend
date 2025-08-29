@@ -40,7 +40,7 @@ The `owner` field is set automatically for all resources you create (customers, 
   "secondary_trades": ["plumber_pro", "electrician_pro"],
   "business_type": "team_business"
 }
-```
+ ```
 
 #### 🔧 Trade Choices
 
@@ -81,7 +81,7 @@ The `owner` field is set automatically for all resources you create (customers, 
   },
   "token": "abcdef123456..."
 }
-```
+ ```
 
 #### ❌ Example Error Responses
 
@@ -108,7 +108,7 @@ The `owner` field is set automatically for all resources you create (customers, 
 {
   "secondary_trades": "Invalid trade codes: foo"
 }
-```
+ ```
 
 ---
 
@@ -125,7 +125,7 @@ The `owner` field is set automatically for all resources you create (customers, 
   "username": "prouser",
   "password": "securepassword123"
 }
-```
+ ```
 
 #### ✅ Successful Response
 
@@ -196,7 +196,7 @@ The `owner` field is set automatically for all resources you create (customers, 
   "role": "solo",
   "can_create_jobs": true
 }
-```
+ ```
 
 ---
 
@@ -232,7 +232,7 @@ Each inventory item is associated with the user who created it. Users can only v
   "ideal_stock": 40,
   "is_active": true
 }
-```
+ ```
 
 ##### Example Successful Response:
 
@@ -252,7 +252,7 @@ Each inventory item is associated with the user who created it. Users can only v
   "last_updated": "2024-06-23T12:34:56Z",
   "owner_code": "123456"
 }
-```
+ ```
 
 ---
 
@@ -279,7 +279,7 @@ Each inventory item is associated with the user who created it. Users can only v
   "cost_per_unit": 9.99,
   "stock_level": 50
 }
-```
+ ```
 
 ##### Example Successful Response (GET):
 
@@ -299,7 +299,7 @@ Each inventory item is associated with the user who created it. Users can only v
   "last_updated": "2024-06-23T13:00:00Z",
   "owner_code": "123456"
 }
-```
+ ```
 
 #### c. List Low Stock Inventory Items
 
@@ -346,7 +346,7 @@ Returns all inventory items where `stock_level <= reorder_at` for the authentica
   "notes": "Prefers morning appointments. Has two HVAC units - main floor and upstairs.",
   "last_contact": "2024-01-15"
 }
-```
+ ```
 
 ##### Example Successful Response:
 
@@ -369,7 +369,7 @@ Returns all inventory items where `stock_level <= reorder_at` for the authentica
   "total_revenue": "1250.00",
   "avg_job_value": "250.00"
 }
-```
+ ```
 
 ---
 
@@ -386,7 +386,7 @@ Returns all inventory items where `stock_level <= reorder_at` for the authentica
 {
   "notes": "Prefers afternoon appointments."
 }
-```
+ ```
 
 ##### Example Successful Response (GET):
 
@@ -409,7 +409,7 @@ Returns all inventory items where `stock_level <= reorder_at` for the authentica
   "total_revenue": "1250.00",
   "avg_job_value": "250.00"
 }
-```
+ ```
 
 ---
 
@@ -459,7 +459,7 @@ Returns a list of all work orders (jobs) for the specified customer.
 > - **Team members** can only view and update jobs assigned to them or jobs they created (if permitted by the admin).
 > - The `created_by_username` and `created_by_user_code` fields in job responses show who created the job.
 > - The `job_type` field describes the type of job (e.g., Maintenance, Repair).
-> - The `status` field can be one of: `pending`, `confirmed`, `en_route`, `in_progress`, `completed`, `cancelled`.
+> - The `status` field can be one of: `pending`, `confirmed`, `in_progress`, `completed`, `cancelled`.
 > - **To create a work order, you must provide the `customer` field, which is the primary key id of the customer.**
 > - The `customer_id` (4-digit code) is for display/search only, not for work order creation.
 
@@ -468,7 +468,6 @@ Returns a list of all work orders (jobs) for the specified customer.
 **Status Choices:**
 - `pending`
 - `confirmed`
-- `en_route`
 - `in_progress`
 - `completed`
 - `cancelled`
@@ -681,9 +680,8 @@ Authorization: Token <your_token>
   "summary": {
     "pending": 3,
     "confirmed": 5,
-    "en_route": 2,
     "in_progress": 4,
-    "completed": 1,
+    "completed": 3,
     "cancelled": 0
   }
 }
@@ -914,158 +912,4 @@ Revokes job creation permission from a specific team member.
 #### g. Logout
 
 **URL:** `/api/users/logout/`  
-**Method:** `POST`  
-**Auth required:** ✅ YES
-
-Logs out the user by deleting their token.
-
-##### Example Successful Response:
-```json
-{
-  "message": "Successfully logged out."
-}
-```
-
----
-
-#### h. Admin Dashboard Metrics
-
-**URL:** `/api/users/team/admin-dashboard/`  
-**Description:** Returns admin dashboard metrics (admin only).
-**Method:** `GET`  
-**Auth required:** ✅ YES (admin only)
-
-Returns key business metrics for the team.
-
-##### Example Successful Response:
-```json
-{
-  "jobs_today": 4,
-  "jobs_trend": "increase",
-  "jobs_diff": 1,
-  "revenue_this_month": 5400.00,
-  "revenue_change_pct": 12.5,
-  "active_customers": 18,
-  "customers_with_open_jobs": 7,
-  "new_customers_this_week": 3,
-  "total_open_jobs": 5,
-  "overdue_jobs": 2,
-  "todays_schedule": [
-    {
-      "title": "Repair leaking pipe",
-      "address": "123 Main St, Memphis, TN 38104",
-      "time": "10:00",
-      "status": "in_progress"
-    },
-    {
-      "title": "Quarterly HVAC checkup",
-      "address": "456 Oak Ave, Memphis, TN 38112",
-      "time": "14:00",
-      "status": "pending"
-    }
-  ],
-  "alerts": {
-    "urgent_jobs": 2,
-    "low_inventory": 1
-  }
-}
-```
-
-##### Example Error Response (No data available):
-```json
-{
-  "jobs_today": 0,
-  "jobs_trend": "no_change",
-  "jobs_diff": 0,
-  "revenue_this_month": 0.0,
-  "revenue_change_pct": 0.0,
-  "active_customers": 0,
-  "customers_with_open_jobs": 0,
-  "new_customers_this_week": 0,
-  "total_open_jobs": 0,
-  "overdue_jobs": 0,
-  "todays_schedule": [],
-  "alerts": {
-    "urgent_jobs": 0,
-    "low_inventory": 0
-  }
-}
-```
-
----
-
-## 📁 URL Routing
-
-| View | Name | URL Pattern |
-| --- | --- | --- |
-| `RegistrationView` | `user-register` | `/api/users/register/` |
-| `SignInView` | `user-login` | `/api/users/login/` |
-| `ProfileView` | `user-profile` | `/api/users/profile/` |
-| `InventoryItemListCreateView` | `inventory-list-create` | `/api/users/inventory/` |
-| `InventoryItemRetrieveUpdateDestroyView` | `inventory-detail` | `/api/users/inventory/<id>/` |
-| `LowStockAlertView` | `inventory-low-stock` | `/api/users/inventory/low-stock/` |
-| `CustomerListCreateView` | `customer-list-create` | `/api/users/customers/` |
-| `CustomerRetrieveUpdateDestroyView` | `customer-detail` | `/api/users/customers/<id>/` |
-| `CustomerJobHistoryView` | `customer-job-history` | `/api/users/customers/<id>/jobs/` |
-| `WorkOrderListCreateView` | `workorder-list-create` | `/api/users/work-orders/` |
-| `WorkOrderRetrieveUpdateDestroyView` | `workorder-detail` | `/api/users/work-orders/<id>/` |
-| `ScheduleView` | `schedule` | `/api/users/schedule/` |
-| `TeamMemberInviteView` | `team-invite` | `/api/users/team/invite/` |
-| `TeamMemberOnboardingView` | `team-onboarding` | `/api/users/team/onboarding/<uuid:invite_token>/` |
-| `TeamMemberListingView` | `team-members` | `/api/users/team/members/` |
-| `TeamInfoView` | `team-info` | `/api/users/team/info/` |
-| `AdminDashboardMetricsView` | `admin-dashboard` | `/api/users/team/admin-dashboard/` |
-| `GrantJobCreationPermissionView` | `grant-job-permission` | `/api/users/team/grant-job-permission/` |
-| `RevokeJobCreationPermissionView` | `revoke-job-permission` | `/api/users/team/revoke-job-permission/` |
-| `LogoutView` | `user-logout` | `/api/users/logout/` |
-
----
-
-## 📦 Dependencies
-
-- `django==5.2.3`
-- `djangorestframework==3.16.0`
-- `djangorestframework-authtoken`
-- `python-decouple==3.8`
-- `python-dotenv==1.1.0`
-- `psycopg2-binary==2.9.10`
-- `corsheaders==4.7.0`
-- `gunicorn==23.0.0`
-- `whitenoise==6.9.0`
-
----
-
-## 🔧 Search & Filtering
-
-### Inventory Items
-- **Search fields:** `name`, `sku`, `supplier`, `category`
-- **Ordering fields:** `name`, `stock_level`, `last_updated`
-
-### Customers
-- **Search fields:** `name`, `email`, `address`, `tags`
-- **Ordering fields:** `name`, `total_revenue`, `last_contact`
-
-### Work Orders
-- **Search fields:** `job_type`, `job_number`, `status`, `priority`, `customer__name`
-- **Ordering fields:** `created_at`, `scheduled_for`, `priority`, `status`
-
----
-
-## ❗️ Important Notes
-
-- All inventory, customer, work order, and team endpoints require authentication unless otherwise noted.
-- Use the correct trade and business type codes as listed above.
-- The `last_updated` field is automatically updated on any change to an inventory item.
-- Team onboarding is always via a UUID invite token.
-- Only team admins can send invites or grant/revoke job creation permissions.
-- Team members are created with `can_create_jobs = False` and must be granted job creation rights by the admin.
-- The user profile endpoint (`/profile/`) includes `can_create_jobs` field that the frontend can check.
-- Admin and solo users have `can_create_jobs = True` by default.
-- Login response includes role, business type, permissions, and team name for frontend routing.
-- Team member registration includes validation for duplicate usernames and emails.
-- See `drf_token_auth_workflow.txt` for a detailed explanation of token authentication and best practices.
-- The admin dashboard metrics endpoint returns comprehensive business analytics for team admins.
-- All URLs are prefixed with `/api/users/` as configured in the main URL configuration.
-- The schedule endpoint is perfect for calendar/schedule UI components with full filtering capabilities.
-
----
+**Method:** `

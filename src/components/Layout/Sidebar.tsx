@@ -33,7 +33,7 @@ const Sidebar: React.FC<SidebarProps> = ({ currentUser }) => {
   const adminMenuItems = [
     { id: 'dashboard', label: 'Dashboard', icon: Home, route: '/dashboard' },
     { id: 'schedule', label: 'Schedule', icon: Calendar, route: '/schedule' },
-    { id: 'jobs', label: 'Work Orders', icon: ClipboardList, route: '/jobs' },
+    { id: 'jobs', label: 'Jobs', icon: ClipboardList, route: '/jobs' },
     { id: 'customers', label: 'Customers', icon: Users, route: '/customers' },
     { id: 'estimates', label: 'Estimates', icon: FileText, route: '/estimates' },
     { id: 'inventory', label: 'Inventory', icon: Package, route: '/inventory' },
@@ -44,7 +44,7 @@ const Sidebar: React.FC<SidebarProps> = ({ currentUser }) => {
 
   const technicianMenuItems = [
     { id: 'mobile-dashboard', label: 'My Dashboard', icon: Smartphone, route: '/mobile-dashboard' },
-    { id: 'jobs', label: 'Work Orders', icon: ClipboardList, route: '/jobs' },
+    { id: 'jobs', label: 'Jobs', icon: ClipboardList, route: '/jobs' },
     { id: 'schedule', label: 'Schedule', icon: Calendar, route: '/schedule' }
   ];
 

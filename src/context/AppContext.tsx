@@ -85,7 +85,7 @@ interface ScheduleFilters {
 interface ScheduleSummary {
   pending: number;
   confirmed: number;
-  en_route: number;
+
   in_progress: number;
   completed: number;
   cancelled: number;
@@ -181,13 +181,26 @@ interface Invoice {
 interface AuthContextType {
   user: User | null;
   isLoading: boolean;
+  dataLoadingState: {
+    inventory: boolean;
+    customers: boolean;
+    teamMembers: boolean;
+    workOrders: boolean;
+    estimates: boolean;
+    invoices: boolean;
+    initialLoadComplete: boolean;
+  };
+  showLoadingOverlay: boolean;
+  currentLoadingStep: string;
+  setShowLoadingOverlay: (show: boolean) => void;
+  setCurrentLoadingStep: (step: string) => void;
   createInventory: (form: any) => Promise<any>;
   updateInventory: (id: number, form: Partial<CustomerFormData>) => Promise<any>;
   deleteInventory: (id: number) => Promise<boolean>;
   refetchProfile: () => Promise<void>;
   refetchInventory: () => Promise<void>;
   inventoryList: InventoryItem[] | null;
-  getInventory: () => Promise<any>;
+  getInventory: (forceRefresh?: boolean) => Promise<any>;
   setToastMessage: React.Dispatch<React.SetStateAction<string | null>>;
   toastMessage: string | null;
   setToastType: React.Dispatch<React.SetStateAction<string>>;
@@ -202,14 +215,14 @@ interface AuthContextType {
   // Team functions
   sendTeamInvite: () => Promise<string>;
   teamMembers: TeamMember[] | null;
-  getCustomers: () => Promise<void>;
-  getTeamMembers: () => Promise<void>;
+  getCustomers: (forceRefresh?: boolean) => Promise<any>;
+  getTeamMembers: (forceRefresh?: boolean) => Promise<void>;
   grantJobCreationPermission: (userId: number) => Promise<any>;
   logout: () => void;
   // Work Orders
   createWorkOrder: (form: any) => Promise<any>;
   workOrders: WorkOrder[] | null;
-  getWorkOrders: () => Promise<void>;
+  getWorkOrders: (forceRefresh?: boolean) => Promise<any>;
   getWorkOrder: (id: number) => Promise<WorkOrder>;
   updateWorkOrder: (id: number, updates: Partial<WorkOrder>) => Promise<WorkOrder>;
   deleteWorkOrder: (id: number) => Promise<boolean>;
@@ -222,7 +235,7 @@ interface AuthContextType {
   // Estimates
   createEstimate: (formData: any) => Promise<Estimate>;
   estimates: Estimate[] | null;
-  getEstimates: () => Promise<void>;
+  getEstimates: (forceRefresh?: boolean) => Promise<void>;
   getEstimate: (id: number) => Promise<Estimate>;
   updateEstimate: (id: number, updates: Partial<Estimate>) => Promise<Estimate>;
   deleteEstimate: (id: number) => Promise<boolean>;
@@ -230,11 +243,28 @@ interface AuthContextType {
   // Invoices
   createInvoice: (formData: any) => Promise<Invoice>;
   invoices: Invoice[] | null;
-  getInvoices: () => Promise<void>;
+  getInvoices: (forceRefresh?: boolean) => Promise<void>;
   getInvoice: (id: number) => Promise<Invoice>;
   updateInvoice: (id: number, updates: Partial<Invoice>) => Promise<Invoice>;
   deleteInvoice: (id: number) => Promise<boolean>;
   markInvoiceAsPaid: (id: number, amount: number) => Promise<Invoice>;
+  // Notifications
+  addNotification: (type: string, title: string, message: string, actionUrl?: string, priority?: 'low' | 'medium' | 'high') => void;
+  notifyJobCreated: (jobNumber: string, customerName: string) => void;
+  notifyJobStatusChanged: (jobNumber: string, oldStatus: string, newStatus: string) => void;
+  notifyJobDeleted: (jobNumber: string) => void;
+  notifyCustomerCreated: (customerName: string) => void;
+  notifyCustomerUpdated: (customerName: string) => void;
+  notifyCustomerDeleted: (customerName: string) => void;
+  notifyInventoryItemCreated: (itemName: string) => void;
+  notifyInventoryItemUpdated: (itemName: string) => void;
+  notifyInventoryItemDeleted: (itemName: string) => void;
+  notifyTeamInviteSent: (email: string) => void;
+  notifyTeamMemberJoined: (memberName: string) => void;
+  notifyEstimateCreated: (estimateNumber: string, customerName: string) => void;
+  notifyEstimateStatusChanged: (estimateNumber: string, newStatus: string) => void;
+  notifyInvoiceCreated: (invoiceNumber: string, customerName: string) => void;
+  notifyInvoicePaid: (invoiceNumber: string, amount: number) => void;
 }
 
 export const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -252,6 +282,21 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [dashboardMetrics, setDashboardMetrics] = useState<DashboardMetrics | null>(null);
   const [estimates, setEstimates] = useState<Estimate[] | null>(null);
   const [invoices, setInvoices] = useState<Invoice[] | null>(null);
+
+  // Data loading state tracking to prevent redundant fetches
+  const [dataLoadingState, setDataLoadingState] = useState({
+    inventory: false,
+    customers: false,
+    teamMembers: false,
+    workOrders: false,
+    estimates: false,
+    invoices: false,
+    initialLoadComplete: false
+  });
+
+  // Loading overlay state
+  const [showLoadingOverlay, setShowLoadingOverlay] = useState<boolean>(false);
+  const [currentLoadingStep, setCurrentLoadingStep] = useState<string>('');
 
   const [toastQueue, setToastQueue] = useState<Toast[]>([]);
 
@@ -306,8 +351,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       // Don't show error toast on onboarding page
       const isOnboardingPage = window.location.pathname.includes('/onboard/');
       if (!isOnboardingPage) {
-        setToastMessage(error instanceof Error ? error.message : String(error));
-        setToastType('error')
+      setToastMessage(error instanceof Error ? error.message : String(error));
+      setToastType('error')
       }
       setUser(null);
     } finally {
@@ -358,13 +403,21 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  const getTeamMembers = async (): Promise<void> => {
+  const getTeamMembers = async (forceRefresh = false): Promise<void> => {
     const token = getToken();
 
     if (!token) {
       console.error('No authentication token found');
       return;
     }
+
+    // Prevent redundant fetches unless forced
+    if (!forceRefresh && dataLoadingState.teamMembers && teamMembers !== null) {
+      console.log("Team members already loaded, skipping fetch");
+      return;
+    }
+
+    setDataLoadingState(prev => ({ ...prev, teamMembers: true }));
 
     try {
       const response = await fetch(`${import.meta.env.VITE_BASE_URL}/team/members/`, {
@@ -389,6 +442,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       console.error('Error fetching team members:', error);
       addToast(`Error fetching team members: ${error instanceof Error ? error.message : 'Unknown error'}`, 'error');
       setTeamMembers(null);
+    } finally {
+      setDataLoadingState(prev => ({ ...prev, teamMembers: false }));
     }
   };
 
@@ -460,7 +515,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       console.log("Inventory created:", data && data.name ? data.name : "[hidden]");
 
       // Refresh inventory list after creation
-      await getInventory();
+      await getInventory(true);
       setToastMessage('Inventories Fetched!')
       setToastType('success')
       return data;
@@ -497,7 +552,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       setToastType('success')
 
       // Refresh inventory list after update
-      await getInventory();
+      await getInventory(true);
 
       return data;
 
@@ -531,7 +586,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       setToastType('error')
 
       // Refresh inventory list after deletion
-      await getInventory();
+      await getInventory(true);
 
       return true;
 
@@ -543,8 +598,17 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  const getInventory = async () => {
+  const getInventory = async (forceRefresh = false) => {
     const token = getToken();
+
+    // Prevent redundant fetches unless forced
+    if (!forceRefresh && dataLoadingState.inventory && inventoryList !== null) {
+      console.log("Inventory already loaded, skipping fetch");
+      return inventoryList;
+    }
+
+    setDataLoadingState(prev => ({ ...prev, inventory: true }));
+    setCurrentLoadingStep('Loading inventory data...');
 
     try {
       const response = await fetch(`${import.meta.env.VITE_BASE_URL}/inventory/`, {
@@ -571,6 +635,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       setToastType('error')
       setInventoryList(null);
       return null;
+    } finally {
+      setDataLoadingState(prev => ({ ...prev, inventory: false }));
     }
   };
 
@@ -604,7 +670,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       setToastType('success')
 
       // Refresh customers list after creation
-      await getCustomers();
+      await getCustomers(true);
 
       return data;
     } catch (error) {
@@ -639,7 +705,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       setToastType('success')
 
       // Refresh customers list after update
-      await getCustomers();
+      await getCustomers(true);
 
       return updatedCustomer;
     } catch (error) {
@@ -672,7 +738,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       setToastType('success')
 
       // Refresh customers list after deletion
-      await getCustomers();
+      await getCustomers(true);
 
       return true;
     } catch (error) {
@@ -683,8 +749,17 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  const getCustomers = async () => {
+  const getCustomers = async (forceRefresh = false) => {
     const token = getToken();
+
+    // Prevent redundant fetches unless forced
+    if (!forceRefresh && dataLoadingState.customers && customers !== null) {
+      console.log("Customers already loaded, skipping fetch");
+      return customers;
+    }
+
+    setDataLoadingState(prev => ({ ...prev, customers: true }));
+    setCurrentLoadingStep('Loading customer data...');
 
     try {
       const res = await fetch(`${import.meta.env.VITE_BASE_URL}/customers/`, {
@@ -708,6 +783,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       console.error('error: ', error)
       setToastMessage(`${error}: Customer Fetch Failed!`)
       setToastType('error')
+    } finally {
+      setDataLoadingState(prev => ({ ...prev, customers: false }));
     }
   };
 
@@ -767,8 +844,18 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  const getWorkOrders = async () => {
+  const getWorkOrders = async (forceRefresh = false) => {
     const token = getToken();
+
+    // Prevent redundant fetches unless forced
+    if (!forceRefresh && dataLoadingState.workOrders && workOrders !== null) {
+      console.log("Work orders already loaded, skipping fetch");
+      return workOrders;
+    }
+
+    setDataLoadingState(prev => ({ ...prev, workOrders: true }));
+    setCurrentLoadingStep('Loading work orders data...');
+
     try {
       const response = await fetch(`${import.meta.env.VITE_BASE_URL}/work-orders/`, {
         method: 'GET',
@@ -790,6 +877,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       setToastType('error');
       setWorkOrders(null);
       return null;
+    } finally {
+      setDataLoadingState(prev => ({ ...prev, workOrders: false }));
     }
   };
 
@@ -838,7 +927,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       setToastType('success');
 
       // Refresh work orders list
-      await getWorkOrders();
+      await getWorkOrders(true);
 
       return data;
     } catch (error) {
@@ -867,7 +956,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       setToastType('success');
 
       // Refresh work orders list
-      await getWorkOrders();
+      await getWorkOrders(true);
 
       return true;
     } catch (error) {
@@ -977,7 +1066,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         );
         
         const openJobs = workOrders.filter((job: any) => 
-          ['pending', 'confirmed', 'en_route', 'in_progress'].includes(job.status)
+          ['pending', 'confirmed', 'in_progress'].includes(job.status)
         ).length;
         
         const overdueJobs = workOrders.filter((job: any) => {
@@ -1063,8 +1152,17 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  const getEstimates = async (): Promise<void> => {
+  const getEstimates = async (forceRefresh = false): Promise<void> => {
     const token = getToken();
+
+    // Prevent redundant fetches unless forced
+    if (!forceRefresh && dataLoadingState.estimates && estimates !== null) {
+      console.log("Estimates already loaded, skipping fetch");
+      return;
+    }
+
+    setDataLoadingState(prev => ({ ...prev, estimates: true }));
+
     try {
       const response = await fetch(`${import.meta.env.VITE_BASE_URL}/estimates/`, {
         method: 'GET',
@@ -1086,6 +1184,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       setToastMessage(`Error fetching estimates: ${error}`);
       setToastType('error');
       setEstimates(null);
+    } finally {
+      setDataLoadingState(prev => ({ ...prev, estimates: false }));
     }
   };
 
@@ -1137,7 +1237,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       setToastType('success');
 
       // Refresh estimates list
-      await getEstimates();
+      await getEstimates(true);
 
       return data;
     } catch (error) {
@@ -1168,7 +1268,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       setToastType('success');
 
       // Refresh estimates list
-      await getEstimates();
+      await getEstimates(true);
 
       return true;
     } catch (error) {
@@ -1235,7 +1335,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       setToastType('success');
 
       // Refresh invoices list
-      await getInvoices();
+      await getInvoices(true);
 
       return data;
     } catch (error) {
@@ -1246,8 +1346,17 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  const getInvoices = async (): Promise<void> => {
+  const getInvoices = async (forceRefresh = false): Promise<void> => {
     const token = getToken();
+
+    // Prevent redundant fetches unless forced
+    if (!forceRefresh && dataLoadingState.invoices && invoices !== null) {
+      console.log("Invoices already loaded, skipping fetch");
+      return;
+    }
+
+    setDataLoadingState(prev => ({ ...prev, invoices: true }));
+
     try {
       const response = await fetch(`${import.meta.env.VITE_BASE_URL}/invoices/`, {
         method: 'GET',
@@ -1269,6 +1378,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       setToastMessage(`Error fetching invoices: ${error}`);
       setToastType('error');
       setInvoices(null);
+    } finally {
+      setDataLoadingState(prev => ({ ...prev, invoices: false }));
     }
   };
 
@@ -1320,7 +1431,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       setToastType('success');
 
       // Refresh invoices list
-      await getInvoices();
+      await getInvoices(true);
 
       return data;
     } catch (error) {
@@ -1414,23 +1525,266 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   // Separate useEffect to fetch data after user is loaded
   useEffect(() => {
     const fetchData = async () => {
-      if (user) {
-        await getInventory();
-        await getCustomers();
-        await getTeamMembers();
-        await getWorkOrders(); // Add this to fetch work orders
-        await getEstimates();
-        await getInvoices();
+      if (user && !dataLoadingState.initialLoadComplete) {
+        console.log("Initial data load started...");
+        setShowLoadingOverlay(true);
+        setCurrentLoadingStep('Initializing data loading...');
+        
+        try {
+          // Fetch all data in parallel for better performance - force refresh for initial load
+          await Promise.all([
+            getInventory(true),
+            getCustomers(true),
+            getTeamMembers(true),
+            getWorkOrders(true),
+            getEstimates(true),
+            getInvoices(true)
+          ]);
+          
+          setDataLoadingState(prev => ({ ...prev, initialLoadComplete: true }));
+          console.log("Initial data load completed!");
+        } catch (error) {
+          console.error("Error during initial data load:", error);
+        } finally {
+          setShowLoadingOverlay(false);
+          setCurrentLoadingStep('');
+        }
       }
     };
     fetchData();
   }, [user]); // This will run when user is set
+
+  // Notification functions for dynamic notifications
+  const addNotification = (type: string, title: string, message: string, actionUrl?: string, priority: 'low' | 'medium' | 'high' = 'medium') => {
+    const notification = {
+      id: `${type}_${Date.now()}`,
+      type,
+      title,
+      message,
+      timestamp: new Date(),
+      read: false,
+      actionUrl,
+      priority
+    };
+
+    // Get existing notifications from localStorage
+    const existingNotifications = localStorage.getItem('notifications');
+    let notifications = [];
+    
+    if (existingNotifications) {
+      try {
+        notifications = JSON.parse(existingNotifications);
+      } catch (error) {
+        console.error('Error parsing existing notifications:', error);
+      }
+    }
+
+    // Add new notification
+    notifications.unshift(notification);
+
+    // Keep only the last 50 notifications
+    if (notifications.length > 50) {
+      notifications = notifications.slice(0, 50);
+    }
+
+    // Save back to localStorage
+    localStorage.setItem('notifications', JSON.stringify(notifications));
+
+    // Add immediate notification if the function is available
+    if ((window as any).addImmediateNotification) {
+      (window as any).addImmediateNotification(notification);
+    }
+  };
+
+  // Notification helpers for different operations
+  const notifyJobCreated = (jobNumber: string, customerName: string) => {
+    addNotification(
+      'job_created',
+      'New Job Created',
+      `Job ${jobNumber} created for ${customerName}`,
+      '/jobs',
+      'medium'
+    );
+    setToastMessage(`Job ${jobNumber} created successfully!`);
+    setToastType('success');
+  };
+
+  const notifyJobStatusChanged = (jobNumber: string, oldStatus: string, newStatus: string) => {
+    addNotification(
+      'job_status_changed',
+      'Job Status Updated',
+      `Job ${jobNumber} status changed from ${oldStatus} to ${newStatus}`,
+      '/jobs',
+      'medium'
+    );
+    setToastMessage(`Job ${jobNumber} status updated to ${newStatus}!`);
+    setToastType('success');
+  };
+
+  const notifyJobDeleted = (jobNumber: string) => {
+    addNotification(
+      'job_deleted',
+      'Job Deleted',
+      `Job ${jobNumber} has been deleted`,
+      '/jobs',
+      'low'
+    );
+    setToastMessage(`Job ${jobNumber} deleted successfully!`);
+    setToastType('success');
+  };
+
+  const notifyCustomerCreated = (customerName: string) => {
+    addNotification(
+      'customer_created',
+      'New Customer Added',
+      `Customer ${customerName} has been added to your system`,
+      '/customers',
+      'medium'
+    );
+    setToastMessage(`Customer ${customerName} added successfully!`);
+    setToastType('success');
+  };
+
+  const notifyCustomerUpdated = (customerName: string) => {
+    addNotification(
+      'customer_updated',
+      'Customer Updated',
+      `Customer ${customerName} information has been updated`,
+      '/customers',
+      'low'
+    );
+    setToastMessage(`Customer ${customerName} updated successfully!`);
+    setToastType('success');
+  };
+
+  const notifyCustomerDeleted = (customerName: string) => {
+    addNotification(
+      'customer_deleted',
+      'Customer Deleted',
+      `Customer ${customerName} has been removed from your system`,
+      '/customers',
+      'low'
+    );
+    setToastMessage(`Customer ${customerName} deleted successfully!`);
+    setToastType('success');
+  };
+
+  const notifyInventoryItemCreated = (itemName: string) => {
+    addNotification(
+      'inventory_created',
+      'New Inventory Item',
+      `Inventory item "${itemName}" has been added`,
+      '/inventory',
+      'medium'
+    );
+    setToastMessage(`Inventory item "${itemName}" added successfully!`);
+    setToastType('success');
+  };
+
+  const notifyInventoryItemUpdated = (itemName: string) => {
+    addNotification(
+      'inventory_updated',
+      'Inventory Updated',
+      `Inventory item "${itemName}" has been updated`,
+      '/inventory',
+      'low'
+    );
+    setToastMessage(`Inventory item "${itemName}" updated successfully!`);
+    setToastType('success');
+  };
+
+  const notifyInventoryItemDeleted = (itemName: string) => {
+    addNotification(
+      'inventory_deleted',
+      'Inventory Item Deleted',
+      `Inventory item "${itemName}" has been removed`,
+      '/inventory',
+      'low'
+    );
+    setToastMessage(`Inventory item "${itemName}" deleted successfully!`);
+    setToastType('success');
+  };
+
+  const notifyTeamInviteSent = (email: string) => {
+    addNotification(
+      'team_invite_sent',
+      'Team Invite Sent',
+      `Invitation sent to ${email}`,
+      '/team',
+      'medium'
+    );
+    setToastMessage(`Team invitation sent successfully!`);
+    setToastType('success');
+  };
+
+  const notifyTeamMemberJoined = (memberName: string) => {
+    addNotification(
+      'team_member_joined',
+      'New Team Member',
+      `${memberName} has joined your team`,
+      '/team',
+      'medium'
+    );
+  };
+
+  const notifyEstimateCreated = (estimateNumber: string, customerName: string) => {
+    addNotification(
+      'estimate_created',
+      'New Estimate Created',
+      `Estimate ${estimateNumber} created for ${customerName}`,
+      '/estimates',
+      'medium'
+    );
+    setToastMessage(`Estimate ${estimateNumber} created successfully!`);
+    setToastType('success');
+  };
+
+  const notifyEstimateStatusChanged = (estimateNumber: string, newStatus: string) => {
+    addNotification(
+      'estimate_status_changed',
+      'Estimate Status Updated',
+      `Estimate ${estimateNumber} status changed to ${newStatus}`,
+      '/estimates',
+      'medium'
+    );
+    setToastMessage(`Estimate ${estimateNumber} status updated to ${newStatus}!`);
+    setToastType('success');
+  };
+
+  const notifyInvoiceCreated = (invoiceNumber: string, customerName: string) => {
+    addNotification(
+      'invoice_created',
+      'New Invoice Created',
+      `Invoice ${invoiceNumber} created for ${customerName}`,
+      '/estimates',
+      'medium'
+    );
+    setToastMessage(`Invoice ${invoiceNumber} created successfully!`);
+    setToastType('success');
+  };
+
+  const notifyInvoicePaid = (invoiceNumber: string, amount: number) => {
+    addNotification(
+      'invoice_paid',
+      'Invoice Paid',
+      `Invoice ${invoiceNumber} has been paid ($${amount.toFixed(2)})`,
+      '/estimates',
+      'high'
+    );
+    setToastMessage(`Invoice ${invoiceNumber} marked as paid!`);
+    setToastType('success');
+  };
 
   return (
     <AuthContext.Provider value={{
       user,
       getCustomers,
       isLoading,
+      dataLoadingState,
+      showLoadingOverlay,
+      currentLoadingStep,
+      setShowLoadingOverlay,
+      setCurrentLoadingStep,
       refetchProfile: fetchUserProfile,
       createInventory,
       updateInventory,
@@ -1484,6 +1838,23 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       updateInvoice,
       deleteInvoice,
       markInvoiceAsPaid,
+      // Notifications
+      addNotification,
+      notifyJobCreated,
+      notifyJobStatusChanged,
+      notifyJobDeleted,
+      notifyCustomerCreated,
+      notifyCustomerUpdated,
+      notifyCustomerDeleted,
+      notifyInventoryItemCreated,
+      notifyInventoryItemUpdated,
+      notifyInventoryItemDeleted,
+      notifyTeamInviteSent,
+      notifyTeamMemberJoined,
+      notifyEstimateCreated,
+      notifyEstimateStatusChanged,
+      notifyInvoiceCreated,
+      notifyInvoicePaid,
     }}>
       {children}
     </AuthContext.Provider>

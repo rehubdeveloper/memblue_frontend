@@ -48,10 +48,10 @@ const ReportsView = () => {
       try {
         console.log('Fetching report data...');
         
-        // Fetch data sequentially to avoid overwhelming the API
-        await getWorkOrders();
-        await getCustomers();
-        await getInventory();
+        // Data is now loaded once in the context, no need to fetch here
+        // await getWorkOrders();
+        // await getCustomers();
+        // await getInventory();
         
         // Only fetch dashboard metrics if user is admin
         if (user?.role === 'admin') {
@@ -220,7 +220,7 @@ const ReportsView = () => {
     const colors = {
       pending: 'bg-orange-100 text-orange-800 border-orange-200',
       confirmed: 'bg-green-100 text-green-800 border-green-200',
-      en_route: 'bg-blue-100 text-blue-800 border-blue-200',
+    
       in_progress: 'bg-purple-100 text-purple-800 border-purple-200',
       completed: 'bg-gray-100 text-gray-800 border-gray-200',
       cancelled: 'bg-red-100 text-red-800 border-red-200'

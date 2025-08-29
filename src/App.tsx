@@ -17,6 +17,7 @@ import OnboardPage from './components/TeamOnboarding/Onboarding';
 import TeamInvite from './components/Team/Team';
 import DashboardLayout from './components/Layout/DashboardLayout';
 import Toast from './components/Toast';
+import DataLoadingWrapper from './components/DataLoadingWrapper';
 import { AuthContext } from './context/AppContext';
 
 function App() {
@@ -36,38 +37,40 @@ function App() {
 
   return (
     <BrowserRouter>
-      {toastMessage && (
-        <Toast
-          message={toastMessage}
-          type={toastType as 'success' | 'error' | 'info'}
-          onClose={() => setToastMessage(null)}
-        />
-      )}
-      <Routes>
-        {/* Public routes */}
-        <Route path="/" element={<LandingPage />} />
-        <Route path="/onboard/:inviteToken" element={<OnboardPage />} />
-        <Route path="/login" element={<LoginPage />} />
-        <Route path="/signup" element={<TradeSelection onComplete={() => { }} login={() => { }} />} />
+      <DataLoadingWrapper>
+        {toastMessage && (
+          <Toast
+            message={toastMessage}
+            type={toastType as 'success' | 'error' | 'info'}
+            onClose={() => setToastMessage(null)}
+          />
+        )}
+        <Routes>
+          {/* Public routes */}
+          <Route path="/" element={<LandingPage />} />
+          <Route path="/onboard/:inviteToken" element={<OnboardPage />} />
+          <Route path="/login" element={<LoginPage />} />
+          <Route path="/signup" element={<TradeSelection onComplete={() => { }} login={() => { }} />} />
 
-        {/* Protected dashboard layout */}
-        <Route element={<DashboardLayout />}>
-          <Route path="/dashboard" element={<DashboardOverview />} />
-          <Route path="/mobile-dashboard" element={<MobileDashboard />} />
-          <Route path="/my-jobs" element={<JobsList />} />
-          <Route path="/schedule" element={<ScheduleView />} />
-          <Route path="/jobs" element={<JobsList />} />
-          <Route path="/customers" element={<CustomersList />} />
-          <Route path="/estimates" element={<EstimatesInvoices />} />
-          <Route path="/inventory" element={<InventoryList />} />
-          <Route path="/reports" element={<ReportsView />} />
-          <Route path="/team" element={<TeamInvite />} />
-          <Route path="/settings" element={<div className="p-4 lg:p-6">Settings Page</div>} />
-        </Route>
+          {/* Protected dashboard layout */}
+          <Route element={<DashboardLayout />}>
+            <Route path="/dashboard" element={<DashboardOverview />} />
+            <Route path="/mobile-dashboard" element={<MobileDashboard />} />
+            <Route path="/my-jobs" element={<JobsList />} />
+            <Route path="/schedule" element={<ScheduleView />} />
+            <Route path="/jobs" element={<JobsList />} />
+            <Route path="/customers" element={<CustomersList />} />
+            <Route path="/estimates" element={<EstimatesInvoices />} />
+            <Route path="/inventory" element={<InventoryList />} />
+            <Route path="/reports" element={<ReportsView />} />
+            <Route path="/team" element={<TeamInvite />} />
+            <Route path="/settings" element={<div className="p-4 lg:p-6">Settings Page</div>} />
+          </Route>
 
-        {/* Catch-all */}
-        <Route path="*" element={<Navigate to="/" replace />} />
-      </Routes>
+          {/* Catch-all */}
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
+      </DataLoadingWrapper>
     </BrowserRouter>
   );
 }
