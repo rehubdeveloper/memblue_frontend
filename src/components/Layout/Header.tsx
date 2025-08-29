@@ -4,6 +4,7 @@ import { User as UserType } from '../../types';
 import { mockBusiness } from '../../data/mockData';
 import { AuthContext, useAuth } from '../../context/AppContext';
 import { useNavigate } from 'react-router-dom';
+import NotificationSystem from '../Notifications/NotificationSystem';
 
 
 
@@ -51,12 +52,7 @@ const Header: React.FC = () => {
           </button>
 
           {/* Notifications */}
-          <button className="relative p-2 text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-lg">
-            <Bell size={20} />
-            <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
-              3
-            </span>
-          </button>
+          <NotificationSystem />
 
 
 

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Trash2, Calculator, Save, X } from 'lucide-react';
+import { Plus, Trash2, Calculator, Save, X, Package } from 'lucide-react';
 import { useAuth } from '../../context/AppContext';
 import { tradeConfigs } from '../../data/tradeConfigs';
 import { format, addDays } from 'date-fns';
@@ -16,10 +16,14 @@ interface LineItem {
   quantity: number;
   unit_price: number;
   category: 'Labor' | 'Materials' | 'Equipment' | 'Travel' | 'Other';
+  isInventoryItem?: boolean;
+  inventoryId?: number;
+  inventoryName?: string;
+  inventorySku?: string;
 }
 
 const TradeSpecificInvoice: React.FC<TradeSpecificInvoiceProps> = ({ estimate, invoice, onSave, onCancel }) => {
-  const { user, customers, workOrders, createInvoice, updateInvoice } = useAuth();
+  const { user, customers, workOrders, createInvoice, updateInvoice, notifyInvoiceCreated, inventoryList, updateInventory } = useAuth();
   const [loading, setLoading] = useState(false);
   const [selectedCustomer, setSelectedCustomer] = useState<number | ''>('');
   const [selectedJob, setSelectedJob] = useState<number | ''>('');
@@ -110,6 +114,19 @@ const TradeSpecificInvoice: React.FC<TradeSpecificInvoiceProps> = ({ estimate, i
     }]);
   };
 
+  const addInventoryItem = (inventoryItem: any, quantity: number = 1) => {
+    setLineItems([...lineItems, {
+      description: inventoryItem.name,
+      quantity: quantity,
+      unit_price: inventoryItem.cost_per_unit,
+      category: 'Materials',
+      isInventoryItem: true,
+      inventoryId: inventoryItem.id,
+      inventoryName: inventoryItem.name,
+      inventorySku: inventoryItem.sku
+    }]);
+  };
+
   const subtotal = lineItems.reduce((sum, item) => sum + (item.quantity * item.unit_price), 0);
   const taxAmount = (subtotal - discount) * (taxRate / 100);
   const total = subtotal - discount + taxAmount;
@@ -123,6 +140,41 @@ const TradeSpecificInvoice: React.FC<TradeSpecificInvoiceProps> = ({ estimate, i
     if (lineItems.some(item => !item.description || item.unit_price <= 0)) {
       alert('Please fill in all line items with valid descriptions and prices');
       return;
+    }
+
+    // Validate inventory quantities for new invoices and estimate conversions
+    if (!invoice) {
+      // Check for inventory items (both newly added and from estimates)
+      const inventoryItems = lineItems.filter(item => item.isInventoryItem);
+      
+      // Also check for items that might be from estimates (by matching with inventory items)
+      const estimateInventoryItems = lineItems.filter(item => {
+        if (item.isInventoryItem) return false; // Already counted above
+        // Check if this item matches an inventory item by name and price
+        const matchingInventory = inventoryList?.find((inv: any) => 
+          inv.name === item.description && inv.cost_per_unit === item.unit_price
+        );
+        return matchingInventory;
+      });
+      
+      const allInventoryItems = [...inventoryItems, ...estimateInventoryItems];
+      
+      for (const item of allInventoryItems) {
+        let inventoryItem;
+        if (item.isInventoryItem) {
+          inventoryItem = inventoryList?.find((inv: any) => inv.id === item.inventoryId);
+        } else {
+          // For estimate items, find by name and price
+          inventoryItem = inventoryList?.find((inv: any) => 
+            inv.name === item.description && inv.cost_per_unit === item.unit_price
+          );
+        }
+        
+        if (inventoryItem && item.quantity > inventoryItem.stock_level) {
+          alert(`Insufficient stock for ${item.description}. Available: ${inventoryItem.stock_level}, Requested: ${item.quantity}`);
+          return;
+        }
+      }
     }
 
     setLoading(true);
@@ -155,6 +207,53 @@ const TradeSpecificInvoice: React.FC<TradeSpecificInvoiceProps> = ({ estimate, i
       } else {
         // Create new invoice
         savedInvoice = await createInvoice(invoiceData);
+        
+        // Update inventory stock for inventory items (only for new invoices)
+        // Handle both newly added inventory items and items from estimates
+        const inventoryItems = lineItems.filter(item => item.isInventoryItem);
+        const estimateInventoryItems = lineItems.filter(item => {
+          if (item.isInventoryItem) return false; // Already counted above
+          // Check if this item matches an inventory item by name and price
+          const matchingInventory = inventoryList?.find((inv: any) => 
+            inv.name === item.description && inv.cost_per_unit === item.unit_price
+          );
+          return matchingInventory;
+        });
+        
+        const allInventoryItems = [...inventoryItems, ...estimateInventoryItems];
+        
+        for (const item of allInventoryItems) {
+          let inventoryItem;
+          let inventoryId;
+          
+          if (item.isInventoryItem) {
+            inventoryItem = inventoryList?.find((inv: any) => inv.id === item.inventoryId);
+            inventoryId = item.inventoryId;
+          } else {
+            // For estimate items, find by name and price
+            inventoryItem = inventoryList?.find((inv: any) => 
+              inv.name === item.description && inv.cost_per_unit === item.unit_price
+            );
+            inventoryId = inventoryItem?.id;
+          }
+          
+          if (inventoryItem && inventoryId) {
+            const newStockLevel = inventoryItem.stock_level - item.quantity;
+            await updateInventory(inventoryId, {
+              stock_level: newStockLevel
+            });
+          }
+        }
+        
+        // Get customer name for notification
+        const customer = customers?.find((c: any) => c.id === selectedCustomer);
+        const customerName = customer ? customer.name : 'Unknown Customer';
+        
+        // Add notification for invoice creation
+        notifyInvoiceCreated(
+          savedInvoice.invoice_number || `INV-${savedInvoice.id}`,
+          customerName
+        );
       }
       
       onSave(savedInvoice);
@@ -315,6 +414,76 @@ const TradeSpecificInvoice: React.FC<TradeSpecificInvoiceProps> = ({ estimate, i
           ))}
         </div>
       </div>
+
+      {/* Inventory Items */}
+      {inventoryList && inventoryList.length > 0 && (
+        <div className="mb-6">
+          <h3 className="font-medium text-slate-900 mb-3 flex items-center">
+            <Package size={20} className="mr-2" />
+            Add Inventory Items
+          </h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+            {inventoryList.filter((item: any) => item.stock_level > 0).map((inventoryItem: any) => {
+              const isAlreadyAdded = lineItems.some(lineItem => 
+                lineItem.isInventoryItem && lineItem.inventoryId === inventoryItem.id
+              );
+              
+              return (
+                <div key={inventoryItem.id} className="border border-slate-200 rounded-lg p-3 hover:bg-slate-50">
+                  <div className="flex justify-between items-start mb-2">
+                    <div className="flex-1">
+                      <h4 className="font-medium text-slate-900 text-sm">{inventoryItem.name}</h4>
+                      <p className="text-slate-600 text-xs">SKU: {inventoryItem.sku}</p>
+                      <p className="text-slate-600 text-xs">
+                        Stock: {inventoryItem.stock_level} | Price: ${inventoryItem.cost_per_unit}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <input
+                      type="number"
+                      min="1"
+                      max={inventoryItem.stock_level}
+                      defaultValue="1"
+                      data-inventory-id={inventoryItem.id}
+                      className="w-16 px-2 py-1 border border-slate-300 rounded text-xs"
+                      placeholder="Qty"
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          const quantity = parseInt((e.target as HTMLInputElement).value) || 1;
+                          if (quantity > 0 && quantity <= inventoryItem.stock_level) {
+                            addInventoryItem(inventoryItem, quantity);
+                            (e.target as HTMLInputElement).value = "1";
+                          }
+                        }
+                      }}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const quantityInput = document.querySelector(`input[data-inventory-id="${inventoryItem.id}"]`) as HTMLInputElement;
+                        const quantity = parseInt(quantityInput?.value) || 1;
+                        if (quantity > 0 && quantity <= inventoryItem.stock_level) {
+                          addInventoryItem(inventoryItem, quantity);
+                          if (quantityInput) quantityInput.value = "1";
+                        }
+                      }}
+                      disabled={isAlreadyAdded}
+                      className={`px-3 py-1 text-xs rounded ${
+                        isAlreadyAdded 
+                          ? 'bg-slate-300 text-slate-500 cursor-not-allowed'
+                          : 'bg-blue-600 text-white hover:bg-blue-700'
+                      }`}
+                    >
+                      {isAlreadyAdded ? 'Added' : 'Add'}
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {/* Line Items */}
       <div className="mb-6">

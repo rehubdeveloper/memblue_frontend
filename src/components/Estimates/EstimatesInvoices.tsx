@@ -1,11 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Search, DollarSign, Clock, CheckCircle, XCircle, Send, Eye, Edit, Trash2, FileText, X, ChevronDown } from 'lucide-react';
+import { Plus, Search, DollarSign, Clock, CheckCircle, XCircle, Send, Eye, Edit, Trash2, FileText, X, ChevronDown, MessageSquare, Settings } from 'lucide-react';
 import { useAuth } from '../../context/AppContext';
 import { tradeConfigs } from '../../data/tradeConfigs';
 import { format } from 'date-fns';
 import TradeSpecificEstimate from './TradeSpecificEstimate';
 import TradeSpecificInvoice from './TradeSpecificInvoice';
 import InvoiceView from './InvoiceView';
+import InterviewEstimateForm from './InterviewEstimateForm';
+import InterviewInvoiceForm from './InterviewInvoiceForm';
 
 interface EstimatesInvoicesProps {
   onNewEstimate?: () => void;
@@ -22,7 +24,8 @@ const EstimatesInvoices: React.FC<EstimatesInvoicesProps> = ({ onNewEstimate }) 
     deleteEstimate, 
     deleteInvoice, 
     convertEstimateToInvoice,
-    markInvoiceAsPaid 
+    markInvoiceAsPaid,
+    notifyInvoicePaid
   } = useAuth();
   
   const [activeTab, setActiveTab] = useState<'estimates' | 'invoices'>('estimates');
@@ -38,6 +41,10 @@ const EstimatesInvoices: React.FC<EstimatesInvoicesProps> = ({ onNewEstimate }) 
   const [showEditInvoiceModal, setShowEditInvoiceModal] = useState(false);
   const [showInvoiceOptions, setShowInvoiceOptions] = useState(false);
   const [showConvertFromEstimateModal, setShowConvertFromEstimateModal] = useState(false);
+  const [showEstimateFormOptions, setShowEstimateFormOptions] = useState(false);
+  const [showInvoiceFormOptions, setShowInvoiceFormOptions] = useState(false);
+  const [interviewEstimateFormOpen, setInterviewEstimateFormOpen] = useState(false);
+  const [interviewInvoiceFormOpen, setInterviewInvoiceFormOpen] = useState(false);
   
   // Map user's primary_trade to trade config keys
   const getTradeConfigKey = (primaryTrade: string) => {
@@ -65,23 +72,43 @@ const EstimatesInvoices: React.FC<EstimatesInvoicesProps> = ({ onNewEstimate }) 
     });
   }, [user, estimates, invoices, loading, tradeConfig, showCreateInvoiceForm]);
 
+  // Data is now loaded once in the context, no need to fetch here
+  // useEffect(() => {
+  //   const fetchData = async () => {
+  //     setLoading(true);
+  //     try {
+  //       await getEstimates();
+  //       await getInvoices();
+  //     } catch (error) {
+  //       console.error('Error fetching estimates/invoices:', error);
+  //     } finally {
+  //       setLoading(false);
+  //     }
+  //   };
+
+  //   if (user) {
+  //     fetchData();
+  //   }
+  // }, [user]); // Remove getEstimates and getInvoices from dependencies to prevent infinite loop
+
+  // Close dropdowns when clicking outside
   useEffect(() => {
-    const fetchData = async () => {
-      setLoading(true);
-      try {
-        await getEstimates();
-        await getInvoices();
-      } catch (error) {
-        console.error('Error fetching estimates/invoices:', error);
-      } finally {
-        setLoading(false);
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as Element;
+      if (!target.closest('.form-options-dropdown')) {
+        setShowEstimateFormOptions(false);
+        setShowInvoiceFormOptions(false);
       }
     };
 
-    if (user) {
-      fetchData();
+    if (showEstimateFormOptions || showInvoiceFormOptions) {
+      document.addEventListener('mousedown', handleClickOutside);
     }
-  }, [user]); // Remove getEstimates and getInvoices from dependencies to prevent infinite loop
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [showEstimateFormOptions, showInvoiceFormOptions]);
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -126,8 +153,8 @@ const EstimatesInvoices: React.FC<EstimatesInvoicesProps> = ({ onNewEstimate }) 
     try {
       await convertEstimateToInvoice(estimateId);
       // Refresh both estimates and invoices lists
-      await getEstimates();
-      await getInvoices();
+      await getEstimates(true);
+      await getInvoices(true);
       // Show success message (you can add a toast notification here)
       alert('Estimate successfully converted to invoice!');
     } catch (error) {
@@ -158,7 +185,16 @@ const EstimatesInvoices: React.FC<EstimatesInvoicesProps> = ({ onNewEstimate }) 
 
   const handleMarkAsPaid = async (invoiceId: number, total: number) => {
     try {
-      await markInvoiceAsPaid(invoiceId, total);
+      const invoice = invoices?.find(inv => inv.id === invoiceId);
+      const result = await markInvoiceAsPaid(invoiceId, total);
+      
+      // Add notification for invoice payment
+      if (invoice) {
+        notifyInvoicePaid(
+          invoice.invoice_number || `INV-${invoice.id}`,
+          total
+        );
+      }
     } catch (error) {
       console.error('Error marking invoice as paid:', error);
     }
@@ -262,20 +298,57 @@ const EstimatesInvoices: React.FC<EstimatesInvoicesProps> = ({ onNewEstimate }) 
         </div>
         
         <div className="flex space-x-3">
-          <button 
-            onClick={() => setShowCreateForm(true)}
-            className="flex items-center space-x-2 bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700"
-          >
-            <Plus size={16} />
-            <span>New {tradeConfig.name} Estimate</span>
-          </button>
+          <div className="relative">
+            <button 
+              onClick={() => setShowEstimateFormOptions(!showEstimateFormOptions)}
+              className="flex items-center space-x-2 bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700"
+            >
+              <Plus size={16} />
+              <span>New {tradeConfig.name} Estimate</span>
+            </button>
+            
+            {/* Estimate Form Options Dropdown */}
+            {showEstimateFormOptions && (
+              <div className="form-options-dropdown absolute top-full left-0 mt-2 w-64 bg-white rounded-lg shadow-lg border border-gray-200 z-10">
+                <div className="p-2">
+                  <button
+                    onClick={() => {
+                      setInterviewEstimateFormOpen(true);
+                      setShowEstimateFormOptions(false);
+                    }}
+                    className="w-full flex items-center space-x-3 p-3 text-left rounded-lg hover:bg-gray-50 transition-colors"
+                  >
+                    <MessageSquare size={16} className="text-blue-600" />
+                    <div>
+                      <div className="font-medium text-gray-900">Simple Form</div>
+                      <div className="text-sm text-gray-600">Step-by-step guided creation</div>
+                    </div>
+                  </button>
+                  
+                  <button
+                    onClick={() => {
+                      setShowCreateForm(true);
+                      setShowEstimateFormOptions(false);
+                    }}
+                    className="w-full flex items-center space-x-3 p-3 text-left rounded-lg hover:bg-gray-50 transition-colors"
+                  >
+                    <Settings size={16} className="text-gray-600" />
+                    <div>
+                      <div className="font-medium text-gray-900">Advanced Form</div>
+                      <div className="text-sm text-gray-600">All fields at once</div>
+                    </div>
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
           <div className="relative invoice-options-dropdown">
             <button 
               onClick={handleCreateInvoice}
               className="flex items-center space-x-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700"
             >
-              <Plus size={16} />
-              <span>New Invoice</span>
+            <Plus size={16} />
+            <span>New Invoice</span>
               <ChevronDown size={14} />
             </button>
             
@@ -283,7 +356,10 @@ const EstimatesInvoices: React.FC<EstimatesInvoicesProps> = ({ onNewEstimate }) 
               <div className="absolute right-0 mt-2 w-56 bg-white rounded-lg shadow-lg border border-slate-200 z-50">
                 <div className="py-1">
                   <button
-                    onClick={handleCreateNewInvoice}
+                    onClick={() => {
+                      setShowInvoiceFormOptions(!showInvoiceFormOptions);
+                      setShowInvoiceOptions(false);
+                    }}
                     className="w-full text-left px-4 py-2 text-sm text-slate-700 hover:bg-slate-100 flex items-center space-x-2"
                   >
                     <Plus size={14} />
@@ -295,6 +371,41 @@ const EstimatesInvoices: React.FC<EstimatesInvoicesProps> = ({ onNewEstimate }) 
                   >
                     <FileText size={14} />
                     <span>Convert from Estimate</span>
+                  </button>
+                </div>
+              </div>
+            )}
+            
+            {/* Invoice Form Options Dropdown */}
+            {showInvoiceFormOptions && (
+              <div className="form-options-dropdown absolute top-full right-0 mt-2 w-64 bg-white rounded-lg shadow-lg border border-gray-200 z-10">
+                <div className="p-2">
+                  <button
+                    onClick={() => {
+                      setInterviewInvoiceFormOpen(true);
+                      setShowInvoiceFormOptions(false);
+                    }}
+                    className="w-full flex items-center space-x-3 p-3 text-left rounded-lg hover:bg-gray-50 transition-colors"
+                  >
+                    <MessageSquare size={16} className="text-blue-600" />
+                    <div>
+                      <div className="font-medium text-gray-900">Simple Form</div>
+                      <div className="text-sm text-gray-600">Step-by-step guided creation</div>
+                    </div>
+                  </button>
+                  
+                  <button
+                    onClick={() => {
+                      handleCreateNewInvoice();
+                      setShowInvoiceFormOptions(false);
+                    }}
+                    className="w-full flex items-center space-x-3 p-3 text-left rounded-lg hover:bg-gray-50 transition-colors"
+                  >
+                    <Settings size={16} className="text-gray-600" />
+                    <div>
+                      <div className="font-medium text-gray-900">Advanced Form</div>
+                      <div className="text-sm text-gray-600">All fields at once</div>
+                    </div>
                   </button>
                 </div>
               </div>
@@ -400,9 +511,9 @@ const EstimatesInvoices: React.FC<EstimatesInvoicesProps> = ({ onNewEstimate }) 
                           <p className="font-medium text-slate-900">{item.description}</p>
                           <div className="flex items-center space-x-2">
                             <p className="text-sm text-slate-600">Qty: {item.quantity} × ${item.unit_price}</p>
-                            <span className="inline-flex px-2 py-1 text-xs bg-slate-100 text-slate-600 rounded">
-                              {item.category}
-                            </span>
+                              <span className="inline-flex px-2 py-1 text-xs bg-slate-100 text-slate-600 rounded">
+                                {item.category}
+                              </span>
                           </div>
                         </div>
                         <p className="font-medium text-slate-900">${item.total.toLocaleString()}</p>
@@ -491,11 +602,11 @@ const EstimatesInvoices: React.FC<EstimatesInvoicesProps> = ({ onNewEstimate }) 
       {activeTab === 'invoices' && (
         <div className="space-y-4">
           {filteredInvoices.length === 0 ? (
-            <div className="text-center py-12">
-              <DollarSign className="mx-auto text-slate-400 mb-4" size={48} />
-              <p className="text-slate-500 text-lg mb-4">No invoices yet</p>
-              <p className="text-slate-400">Invoices will appear here once you convert estimates or create them directly</p>
-            </div>
+        <div className="text-center py-12">
+          <DollarSign className="mx-auto text-slate-400 mb-4" size={48} />
+          <p className="text-slate-500 text-lg mb-4">No invoices yet</p>
+          <p className="text-slate-400">Invoices will appear here once you convert estimates or create them directly</p>
+        </div>
           ) : (
             filteredInvoices.map((invoice) => (
               <div key={invoice.id} className="bg-white rounded-lg p-6 shadow-sm border border-slate-200">
@@ -889,6 +1000,17 @@ const EstimatesInvoices: React.FC<EstimatesInvoicesProps> = ({ onNewEstimate }) 
           }}
         />
       )}
+
+      {/* Interview Form Components */}
+      <InterviewEstimateForm 
+        isOpen={interviewEstimateFormOpen} 
+        onClose={() => setInterviewEstimateFormOpen(false)}
+      />
+      
+      <InterviewInvoiceForm 
+        isOpen={interviewInvoiceFormOpen} 
+        onClose={() => setInterviewInvoiceFormOpen(false)}
+      />
     </div>
   );
 };

@@ -63,7 +63,7 @@ const InventoryList = () => {
   const [deleteConfirm, setDeleteConfirm] = useState<number | null>(null);
   const [loading, setLoading] = useState(false);
 
-  const { createInventory, updateInventory, deleteInventory, inventoryList, user } = useAuth();
+  const { createInventory, updateInventory, deleteInventory, inventoryList, user, notifyInventoryItemCreated, notifyInventoryItemUpdated, notifyInventoryItemDeleted } = useAuth();
 
   // Convert inventoryList to typed array, handle null/undefined and ensure proper types
   const inventory: InventoryItem[] = inventoryList ?
@@ -129,9 +129,15 @@ const InventoryList = () => {
       if (editingItem && editingItem.id) {
         // Update existing item
         res = await updateInventory(editingItem.id, formData);
+        if (res && res.name) {
+          notifyInventoryItemUpdated(formData.name);
+        }
       } else {
         // Create new item
         res = await createInventory(formData);
+        if (res && res.name) {
+          notifyInventoryItemCreated(formData.name);
+        }
       }
 
       if (res && res.name) {
@@ -151,8 +157,12 @@ const InventoryList = () => {
   const handleDelete = async (id: number) => {
     setLoading(true);
     try {
+      const item = inventory.find(item => item.id === id);
+      const itemName = item?.name || 'Unknown Item';
+      
       const success = await deleteInventory(id);
       if (success) {
+        notifyInventoryItemDeleted(itemName);
         setDeleteConfirm(null);
       }
     } catch (error) {

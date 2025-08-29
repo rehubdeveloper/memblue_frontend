@@ -36,12 +36,14 @@ const TeamInvite: React.FC = () => {
     const getTeamMembers = context?.getTeamMembers;
     const sendTeamInvite = context?.sendTeamInvite;
     const grantJobCreationPermission = context?.grantJobCreationPermission;
+    const notifyTeamInviteSent = context?.notifyTeamInviteSent;
 
-    useEffect(() => {
-        if (getTeamMembers) {
-            getTeamMembers();
-        }
-    }, []);
+      // Data is now loaded once in the context, no need to fetch here
+  // useEffect(() => {
+  //   if (getTeamMembers) {
+  //     getTeamMembers();
+  //   }
+  // }, []);
 
     // Map TeamMember to TeamMemberData for UI compatibility
     const teamMembers = (context?.teamMembers ?? []).map((member: any) => ({
@@ -72,6 +74,11 @@ const TeamInvite: React.FC = () => {
                 createdAt: new Date().toISOString(),
             }
             setInviteLink(newInvite)
+            
+            // Add notification for team invite
+            if (notifyTeamInviteSent) {
+                notifyTeamInviteSent('team member');
+            }
         } catch (error) {
             console.error("Error creating invite link:", error)
             // Error is already handled in the context with toast

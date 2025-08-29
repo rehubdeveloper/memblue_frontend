@@ -4,7 +4,7 @@ import { useAuth } from '../../context/AppContext';
 const statusOptions = [
     'pending',
     'confirmed',
-    'en_route',
+  
     'in_progress',
     'completed',
     'cancelled',

@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Search, Phone, Mail, MapPin, Tag, Calendar, Home, Building, Users as UsersIcon, Edit, Trash2 } from 'lucide-react';
+import { Plus, Search, Phone, Mail, MapPin, Tag, Calendar, Home, Building, Users as UsersIcon, Edit, Trash2, X, Clock, DollarSign, MessageSquare, Settings } from 'lucide-react';
 import { mockCustomers, mockBusiness } from '../../data/mockData';
 import { tradeConfigs } from '../../data/tradeConfigs';
 import { Customer, CustomerFormData } from '../../types';
 import { useAuth } from '../../context/AppContext';
+import InterviewJobForm from '../Jobs/InterviewJobForm';
 
 const CustomersList = () => {
   const [searchTerm, setSearchTerm] = useState('');
@@ -12,14 +13,38 @@ const CustomersList = () => {
   const [editingCustomer, setEditingCustomer] = useState<CustomerFormData | null>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState<number | null>(null);
   const [isSaving, setIsSaving] = useState(false);
+  const [showJobHistoryModal, setShowJobHistoryModal] = useState(false);
+  const [showCreateJobModal, setShowCreateJobModal] = useState(false);
+  const [selectedCustomer, setSelectedCustomer] = useState<CustomerFormData | null>(null);
+  const [showFormOptions, setShowFormOptions] = useState(false);
+  const [interviewFormOpen, setInterviewFormOpen] = useState(false);
 
-  const { customers, user, createCustomer, updateCustomer, deleteCustomer, getCustomers } = useAuth();
+  const { customers, user, createCustomer, updateCustomer, deleteCustomer, getCustomers, getWorkOrders, createWorkOrder, notifyCustomerCreated, notifyCustomerUpdated, notifyCustomerDeleted, notifyJobCreated } = useAuth();
 
+  // Data is now loaded once in the context, no need to fetch here
+  // useEffect(() => {
+  //   if (!customers || customers.length === 0) {
+  //     getCustomers && getCustomers();
+  //   }
+  // }, []);
+
+  // Close dropdown when clicking outside
   useEffect(() => {
-    if (!customers || customers.length === 0) {
-      getCustomers && getCustomers();
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as Element;
+      if (!target.closest('.form-options-dropdown')) {
+        setShowFormOptions(false);
+      }
+    };
+
+    if (showFormOptions) {
+      document.addEventListener('mousedown', handleClickOutside);
     }
-  }, []);
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [showFormOptions]);
 
   const tradeConfig = tradeConfigs[mockBusiness.primaryTrade];
 
@@ -108,13 +133,27 @@ const CustomersList = () => {
 
   const handleDeleteConfirm = async (customerId: number) => {
     try {
+      const customer = customers?.find(c => c.id === customerId);
+      const customerName = customer?.name || 'Unknown Customer';
+      
       const success = await deleteCustomer(customerId);
       if (success) {
+        notifyCustomerDeleted(customerName);
         setShowDeleteConfirm(null);
       }
     } catch (error) {
       console.error('Error deleting customer:', error);
     }
+  };
+
+  const handleViewJobHistory = (customer: CustomerFormData) => {
+    setSelectedCustomer(customer);
+    setShowJobHistoryModal(true);
+  };
+
+  const handleCreateJob = (customer: CustomerFormData) => {
+    setSelectedCustomer(customer);
+    setShowFormOptions(!showFormOptions);
   };
 
   const AddEditCustomerDialog = () => {
@@ -154,9 +193,11 @@ const CustomersList = () => {
             last_contact: formData.last_contact,
           };
           await updateCustomer(Number(editingCustomer.id), updateData);
+          notifyCustomerUpdated(formData.name);
         } else {
           // Create new customer
-          await createCustomer(formData);
+          const result = await createCustomer(formData);
+          notifyCustomerCreated(formData.name);
         }
 
         setFormData(initialCustomerState);
@@ -311,6 +352,470 @@ const CustomersList = () => {
     </div>
   );
 
+  const JobHistoryModal = () => {
+    if (!selectedCustomer) return null;
+
+    const [jobHistory, setJobHistory] = useState<any[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
+
+    // Fetch job history for the selected customer
+    useEffect(() => {
+      const fetchJobHistory = async () => {
+        if (!selectedCustomer?.id) return;
+        
+        setLoading(true);
+        setError(null);
+        
+        try {
+          const response = await fetch(`${import.meta.env.VITE_BASE_URL}/customers/${selectedCustomer.id}/jobs/`, {
+            method: 'GET',
+            headers: {
+              'Authorization': `Token ${localStorage.getItem('token')}`,
+              'Content-Type': 'application/json',
+            },
+          });
+
+          if (response.ok) {
+            const data = await response.json();
+            setJobHistory(data);
+          } else {
+            setError('Failed to fetch job history');
+          }
+        } catch (error) {
+          console.error('Error fetching job history:', error);
+          setError('Error loading job history');
+        } finally {
+          setLoading(false);
+        }
+      };
+
+      fetchJobHistory();
+    }, [selectedCustomer?.id]);
+
+    const getStatusColor = (status: string) => {
+      switch (status) {
+        case 'completed': return 'bg-green-100 text-green-800';
+        case 'in_progress': return 'bg-blue-100 text-blue-800';
+        case 'pending': return 'bg-yellow-100 text-yellow-800';
+        case 'cancelled': return 'bg-red-100 text-red-800';
+        default: return 'bg-gray-100 text-gray-800';
+      }
+    };
+
+    return (
+      <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50 p-4">
+        <div className="bg-white rounded-xl shadow-lg w-full max-w-4xl max-h-[90vh] overflow-y-auto">
+          <div className="flex justify-between items-center p-4 sm:p-6 border-b">
+            <h2 className="text-lg sm:text-xl font-semibold">
+              Job History - {selectedCustomer.name}
+            </h2>
+            <button
+              onClick={() => setShowJobHistoryModal(false)}
+              className="text-gray-500 hover:text-gray-700"
+            >
+              <X size={24} />
+            </button>
+          </div>
+          
+          <div className="p-4 sm:p-6">
+            {loading ? (
+              <div className="text-center py-8">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
+                <p className="text-gray-600">Loading job history...</p>
+              </div>
+            ) : error ? (
+              <div className="text-center py-8">
+                <div className="text-red-500 mb-4">
+                  <svg className="mx-auto h-12 w-12" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
+                  </svg>
+                </div>
+                <p className="text-gray-500 text-lg mb-2">Error loading job history</p>
+                <p className="text-gray-400 text-sm">{error}</p>
+              </div>
+            ) : jobHistory.length > 0 ? (
+              <div className="space-y-4">
+                {jobHistory.map((job) => (
+                  <div key={job.id} className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between space-y-2 sm:space-y-0">
+                      <div className="flex-1">
+                        <div className="flex items-center space-x-3 mb-2">
+                          <h3 className="font-semibold text-gray-900">{job.job_type}</h3>
+                          <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(job.status)}`}>
+                            {job.status.replace('_', ' ')}
+                          </span>
+                          <span className="text-xs text-gray-500 font-mono">#{job.job_number}</span>
+                        </div>
+                        <p className="text-gray-600 text-sm mb-2">{job.description}</p>
+                        <div className="flex items-center space-x-4 text-sm text-gray-500">
+                          <div className="flex items-center space-x-1">
+                            <Clock size={14} />
+                            <span>{new Date(job.scheduled_for).toLocaleDateString()}</span>
+                          </div>
+                          <div className="flex items-center space-x-1">
+                            <DollarSign size={14} />
+                            <span>${job.amount}</span>
+                          </div>
+                          {job.progress_total > 0 && (
+                            <div className="flex items-center space-x-1">
+                              <span className="text-xs">Progress: {job.progress_current}/{job.progress_total}</span>
+                            </div>
+                          )}
+                        </div>
+                        {job.tags && job.tags.length > 0 && (
+                          <div className="flex flex-wrap gap-1 mt-2">
+                            {job.tags.map((tag: string, index: number) => (
+                              <span key={index} className="px-2 py-1 bg-gray-100 text-gray-600 text-xs rounded-full">
+                                {tag}
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-8">
+                <Clock className="mx-auto text-gray-400 mb-4" size={48} />
+                <p className="text-gray-500 text-lg mb-2">No job history found</p>
+                <p className="text-gray-400 text-sm">This customer hasn't had any jobs yet.</p>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  const CreateJobModal = () => {
+    if (!selectedCustomer) return null;
+
+    const { teamMembers, user } = useAuth();
+
+    const [formData, setFormData] = useState({
+      job_type: '',
+      description: '',
+      status: 'pending',
+      priority: 'low',
+      tags: '',
+      scheduled_for: '',
+      assigned_to: '',
+      progress_current: '0',
+      progress_total: '1',
+      amount: '',
+      address: selectedCustomer.address || '',
+    });
+
+    const [isSubmitting, setIsSubmitting] = useState(false);
+
+    const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
+      const { name, value } = e.target;
+      setFormData(prev => ({
+        ...prev,
+        [name]: value
+      }));
+    };
+
+    const handleSubmit = async (e: React.FormEvent) => {
+      e.preventDefault();
+      setIsSubmitting(true);
+
+      try {
+        // Create job data
+        const jobData = {
+          customer: selectedCustomer.id,
+          job_type: formData.job_type,
+          description: formData.description,
+          status: formData.status,
+          priority: formData.priority,
+          tags: formData.tags.split(',').map(tag => tag.trim()).filter(Boolean),
+          scheduled_for: formData.scheduled_for,
+          assigned_to: user?.role === 'solo' ? user.id : Number(formData.assigned_to),
+          progress_current: Number(formData.progress_current),
+          progress_total: Number(formData.progress_total),
+          amount: Number(formData.amount),
+          address: formData.address,
+          primary_trade: user?.primary_trade,
+          owner: user?.id,
+        };
+
+        // Call the actual API to create the job
+        const success = await createWorkOrder(jobData);
+        
+        if (success) {
+          // Show success notification
+          notifyJobCreated(formData.job_type);
+          
+          // Refresh customers data to update job counts
+          await getCustomers(true);
+          // Also refresh work orders to ensure everything is updated
+          await getWorkOrders(true);
+          
+          // Close the modal and reset form
+          setShowCreateJobModal(false);
+          setSelectedCustomer(null);
+          setFormData({
+            job_type: '',
+            description: '',
+            status: 'pending',
+            priority: 'low',
+            tags: '',
+            scheduled_for: '',
+            assigned_to: '',
+            progress_current: '0',
+            progress_total: '1',
+            amount: '',
+            address: selectedCustomer.address || '',
+          });
+        }
+        
+      } catch (error) {
+        console.error('Error creating job:', error);
+      } finally {
+        setIsSubmitting(false);
+      }
+    };
+
+    const handleClose = () => {
+      setShowCreateJobModal(false);
+      setSelectedCustomer(null);
+      setFormData({
+        job_type: '',
+        description: '',
+        status: 'pending',
+        priority: 'low',
+        tags: '',
+        scheduled_for: '',
+        assigned_to: '',
+        progress_current: '0',
+        progress_total: '1',
+        amount: '',
+        address: selectedCustomer.address || '',
+      });
+    };
+
+    return (
+      <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50 p-4">
+        <div className="bg-white rounded-xl shadow-lg w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+          <div className="flex justify-between items-center p-4 sm:p-6 border-b">
+            <h2 className="text-lg sm:text-xl font-semibold">
+              Create New Job - {selectedCustomer.name}
+            </h2>
+            <button
+              onClick={handleClose}
+              className="text-gray-500 hover:text-gray-700"
+            >
+              <X size={24} />
+            </button>
+          </div>
+          
+          <form onSubmit={handleSubmit} className="p-4 sm:p-6 space-y-4">
+            {/* Job Details */}
+            <div className="space-y-4">
+              <h3 className="font-semibold text-gray-900">Job Details</h3>
+              
+              {/* Customer and Job Type */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Customer</label>
+                  <input
+                    type="text"
+                    value={selectedCustomer.name}
+                    disabled
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-100 text-gray-600"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Job Type *</label>
+                  <input
+                    name="job_type"
+                    value={formData.job_type}
+                    onChange={handleChange}
+                    required
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                    placeholder="e.g., Maintenance, Repair, Installation"
+                  />
+                </div>
+              </div>
+
+              {/* Description */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Description *</label>
+                <textarea
+                  name="description"
+                  value={formData.description}
+                  onChange={handleChange}
+                  required
+                  rows={3}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors resize-none"
+                  placeholder="Describe the work to be performed..."
+                />
+              </div>
+
+              {/* Status and Priority */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
+                  <select
+                    name="status"
+                    value={formData.status}
+                    onChange={handleChange}
+                    required
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                  >
+                    <option value="pending">pending</option>
+                    <option value="confirmed">confirmed</option>
+                    <option value="in_progress">in_progress</option>
+                    <option value="completed">completed</option>
+                    <option value="cancelled">cancelled</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Priority</label>
+                  <select
+                    name="priority"
+                    value={formData.priority}
+                    onChange={handleChange}
+                    required
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                  >
+                    <option value="low">low</option>
+                    <option value="medium">medium</option>
+                    <option value="high">high</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* Tags */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Tags (comma separated)</label>
+                <input
+                  name="tags"
+                  value={formData.tags}
+                  onChange={handleChange}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                  placeholder="e.g., System: 1yr old, SEER: 20, R-410A"
+                />
+              </div>
+
+              {/* Schedule and Assignment */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Scheduled For *</label>
+                  <input
+                    type="datetime-local"
+                    name="scheduled_for"
+                    value={formData.scheduled_for}
+                    onChange={handleChange}
+                    required
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                  />
+                </div>
+
+                {user?.role === 'admin' && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Assigned To</label>
+                    <select
+                      name="assigned_to"
+                      value={formData.assigned_to}
+                      onChange={handleChange}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                    >
+                      <option value="">Unassigned</option>
+                      {teamMembers && teamMembers.map(member => (
+                        <option key={member.id} value={member.id}>{member.first_name} {member.last_name}</option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+              </div>
+
+              {/* Progress */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Progress Current</label>
+                  <input
+                    type="number"
+                    name="progress_current"
+                    value={formData.progress_current}
+                    onChange={handleChange}
+                    min="0"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                    placeholder="0"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Progress Total</label>
+                  <input
+                    type="number"
+                    name="progress_total"
+                    value={formData.progress_total}
+                    onChange={handleChange}
+                    min="1"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                    placeholder="1"
+                  />
+                </div>
+              </div>
+
+              {/* Amount and Address */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Amount ($)</label>
+                  <input
+                    type="number"
+                    name="amount"
+                    value={formData.amount}
+                    onChange={handleChange}
+                    step="0.01"
+                    min="0"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                    placeholder="0.00"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Address</label>
+                  <input
+                    type="text"
+                    name="address"
+                    value={formData.address}
+                    onChange={handleChange}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                    placeholder="Job location address"
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div className="flex flex-col sm:flex-row justify-end space-y-3 sm:space-y-0 sm:space-x-3 pt-4 border-t">
+              <button
+                type="button"
+                onClick={handleClose}
+                className="px-6 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 text-sm sm:text-base"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={isSubmitting}
+                className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 disabled:opacity-50 text-sm sm:text-base"
+              >
+                {isSubmitting ? 'Creating...' : 'Create Job'}
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    );
+  };
+
   return (
     <div className="p-4 sm:p-6">
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-6 space-y-4 sm:space-y-0">
@@ -341,6 +846,16 @@ const CustomersList = () => {
           onCancel={() => setShowDeleteConfirm(null)}
         />
       )}
+
+      {showJobHistoryModal && <JobHistoryModal />}
+      {showCreateJobModal && <CreateJobModal />}
+      <InterviewJobForm 
+        isOpen={interviewFormOpen} 
+        onClose={() => setInterviewFormOpen(false)}
+        customerId={selectedCustomer?.id ? Number(selectedCustomer.id) : undefined}
+        customerName={selectedCustomer?.name}
+        customerAddress={selectedCustomer?.address}
+      />
 
       {/* Search & Filters */}
       <div className="bg-white rounded-lg p-4 mb-6 shadow-sm border border-slate-200">
@@ -449,25 +964,61 @@ const CustomersList = () => {
             <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between pt-4 border-t border-slate-200 space-y-4 lg:space-y-0">
               <div className="flex items-center space-x-6">
                 <div>
-                  <p className="text-lg font-semibold text-slate-900">{customer.job_count || 0}</p>
-                  <p className="text-sm text-slate-600">{tradeConfig.name} Jobs</p>
-                </div>
-
-                <div>
-                  <p className="text-lg font-semibold text-slate-900">
-                    ${(customer.job_count && customer.job_count > 0) ? ((customer.total_revenue || 0) / customer.job_count).toFixed(0) : '0'}
-                  </p>
-                  <p className="text-sm text-slate-600">Avg Job Value</p>
+                  <p className="text-lg font-semibold text-slate-900">{customer.jobs_count || customer.job_count || 0}</p>
+                  <p className="text-sm text-slate-600">Total Jobs</p>
                 </div>
               </div>
 
               <div className="flex flex-wrap gap-2 w-full lg:w-auto">
-                <button className="text-blue-600 hover:text-blue-800 text-xs sm:text-sm font-medium px-2 py-1">
+                <button 
+                  onClick={() => handleViewJobHistory(customer)}
+                  className="text-blue-600 hover:text-blue-800 text-xs sm:text-sm font-medium px-2 py-1"
+                >
                   View History
                 </button>
-                <button className="text-green-600 hover:text-green-800 text-xs sm:text-sm font-medium px-2 py-1">
-                  Schedule {tradeConfig.name} Service
-                </button>
+                <div className="relative">
+                  <button 
+                    onClick={() => handleCreateJob(customer)}
+                    className="text-green-600 hover:text-green-800 text-xs sm:text-sm font-medium px-2 py-1"
+                  >
+                    Create Job
+                  </button>
+                  
+                  {/* Form Options Dropdown */}
+                  {showFormOptions && selectedCustomer?.id === customer.id && (
+                    <div className="form-options-dropdown absolute top-full left-0 mt-2 w-64 bg-white rounded-lg shadow-lg border border-gray-200 z-10">
+                      <div className="p-2">
+                        <button
+                          onClick={() => {
+                            setInterviewFormOpen(true);
+                            setShowFormOptions(false);
+                          }}
+                          className="w-full flex items-center space-x-3 p-3 text-left rounded-lg hover:bg-gray-50 transition-colors"
+                        >
+                          <MessageSquare size={16} className="text-blue-600" />
+                          <div>
+                            <div className="font-medium text-gray-900">Simple Form</div>
+                            <div className="text-sm text-gray-600">Step-by-step guided creation</div>
+                          </div>
+                        </button>
+                        
+                        <button
+                          onClick={() => {
+                            setShowCreateJobModal(true);
+                            setShowFormOptions(false);
+                          }}
+                          className="w-full flex items-center space-x-3 p-3 text-left rounded-lg hover:bg-gray-50 transition-colors"
+                        >
+                          <Settings size={16} className="text-gray-600" />
+                          <div>
+                            <div className="font-medium text-gray-900">Advanced Form</div>
+                            <div className="text-sm text-gray-600">All fields at once</div>
+                          </div>
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
                 <button
                   onClick={() => handleEditCustomer(customer)}
                   className="flex items-center space-x-1 text-slate-600 hover:text-slate-800 text-xs sm:text-sm font-medium px-2 py-1"

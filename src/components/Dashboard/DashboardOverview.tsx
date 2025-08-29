@@ -4,69 +4,118 @@ import { Calendar, DollarSign, Users, ClipboardList, AlertTriangle, TrendingUp, 
 import { tradeConfigs } from '../../data/tradeConfigs';
 import { useAuth } from '../../context/AppContext';
 import Cookies from 'js-cookie';
+import { useNavigate } from 'react-router-dom';
 
 const getToken = () => Cookies.get('token') || localStorage.getItem('token');
 
 const DashboardOverview = () => {
-  const { user } = useAuth();
+  const { user, workOrders, getWorkOrders, inventoryList, getInventory } = useAuth();
+  const navigate = useNavigate();
   const [dashboard, setDashboard] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    const fetchDashboard = async () => {
-      setLoading(true);
-      setError(null);
-      const token = getToken();
-      if (!token) {
-        setError('No authentication token found');
-        setLoading(false);
-        return;
+     // Function to calculate alerts based on current data
+   const calculateAlerts = (workOrdersData: any[], inventoryData: any[]) => {
+     const alerts = [];
+     
+     // Check for overdue jobs
+     const today = new Date();
+     today.setHours(0, 0, 0, 0);
+     const overdueJobs = workOrdersData ? workOrdersData.filter((job: any) => {
+       const scheduledDate = new Date(job.scheduled_for);
+       return scheduledDate < today && ['pending', 'confirmed', 'in_progress'].includes(job.status);
+     }).length : 0;
+
+     if (overdueJobs > 0) {
+       alerts.push(`${overdueJobs} job(s) are overdue!`);
+     }
+
+           // Check for low inventory items
+      console.log('=== CALCULATE ALERTS - INVENTORY DEBUG ===');
+      console.log('inventoryData:', inventoryData);
+      console.log('inventoryData length:', inventoryData ? inventoryData.length : 'null/undefined');
+      
+      // Debug: Log first item structure to see field names
+      if (inventoryData && inventoryData.length > 0) {
+        console.log('First inventory item structure:', inventoryData[0]);
+        console.log('Available fields:', Object.keys(inventoryData[0]));
       }
+      
+             const lowInventoryItems = inventoryData ? inventoryData.filter((item: any) => {
+         const quantity = parseInt(item.stock_level) || 0; // Use stock_level instead of quantity
+         const idealStock = parseInt(item.ideal_stock) || 0;
+         console.log('Checking item:', item.name || item.item_name, 'stock_level:', quantity, 'ideal_stock:', idealStock);
+         return quantity < idealStock && quantity > 0; // Low stock when below ideal stock level
+       }).length : 0;
+
+     console.log('lowInventoryItems count:', lowInventoryItems);
+
+     if (lowInventoryItems > 0) {
+                        // Get the actual low inventory items for more specific alert
+         const lowInventoryItemDetails = inventoryData ? inventoryData.filter((item: any) => {
+           const quantity = parseInt(item.stock_level) || 0; // Use stock_level instead of quantity
+           const idealStock = parseInt(item.ideal_stock) || 0;
+           return quantity < idealStock && quantity > 0;
+         }).map((item: any) => ({
+           name: item.name || item.item_name || 'Unknown Item',
+           quantity: parseInt(item.stock_level) || 0 // Use stock_level instead of quantity
+         })) : [];
+       
+       alerts.push({
+         type: 'low_inventory',
+         count: lowInventoryItems,
+         items: lowInventoryItemDetails,
+         message: `${lowInventoryItems} item(s) need reordering`
+       });
+       console.log('Added low inventory alert to alerts array:', alerts[alerts.length - 1]);
+     }
+
+           console.log('Final alerts array:', alerts);
+      return alerts;
+   };
+
+    // Fetch job status counts from the new API endpoint
+  useEffect(() => {
+    const fetchStatusCounts = async () => {
+      if (!user) return;
+      
+      const token = getToken();
+      if (!token) return;
+
       try {
-        const res = await fetch(`${import.meta.env.VITE_BASE_URL}/team/admin-dashboard/`, {
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Token ${token}`,
-          },
-        });
-        if (!res.ok) {
-          if (res.status === 403) {
-            // For solo operators, fetch their work orders and calculate dashboard
-            try {
-              const workOrdersRes = await fetch(`${import.meta.env.VITE_BASE_URL}/work-orders/`, {
+        console.log('Fetching job status counts from API...');
+        const response = await fetch(`${import.meta.env.VITE_BASE_URL}/work-orders/status-count/`, {
                 headers: {
                   'Content-Type': 'application/json',
                   'Authorization': `Token ${token}`,
                 },
               });
 
-              if (workOrdersRes.ok) {
-                const workOrders = await workOrdersRes.json();
+        if (!response.ok) {
+          throw new Error(`Failed to fetch status counts: ${response.status}`);
+        }
 
-                // Calculate dashboard metrics from work orders
+        const data = await response.json();
+        console.log('Status counts API response:', data);
+
+        // Calculate dashboard metrics from work orders (for other data)
                 const today = new Date();
                 today.setHours(0, 0, 0, 0);
 
-                const jobsToday = workOrders.filter((job: any) => {
+        const jobsToday = workOrders ? workOrders.filter((job: any) => {
                   const jobDate = new Date(job.scheduled_for);
                   jobDate.setHours(0, 0, 0, 0);
                   return jobDate.getTime() === today.getTime();
-                }).length;
+        }).length : 0;
 
-                const openJobs = workOrders.filter((job: any) =>
-                  ['pending', 'confirmed', 'en_route', 'in_progress'].includes(job.status)
-                ).length;
-
-                const overdueJobs = workOrders.filter((job: any) => {
+        const overdueJobs = workOrders ? workOrders.filter((job: any) => {
                   const scheduledDate = new Date(job.scheduled_for);
-                  return scheduledDate < today && ['pending', 'confirmed', 'en_route', 'in_progress'].includes(job.status);
-                }).length;
-
-                const completedJobs = workOrders.filter((job: any) => job.status === 'completed').length;
+          return scheduledDate < today && ['pending', 'confirmed', 'in_progress'].includes(job.status);
+        }).length : 0;
 
                 // Calculate revenue from completed jobs
-                const revenueThisMonth = workOrders
+        const revenueThisMonth = workOrders ? workOrders
                   .filter((job: any) => {
                     const jobDate = new Date(job.created_at);
                     return jobDate.getMonth() === today.getMonth() &&
@@ -74,20 +123,35 @@ const DashboardOverview = () => {
                       job.status === 'completed';
                   })
                   .reduce((sum: number, job: any) => sum + parseFloat(job.amount || '0'), 0)
-                  .toFixed(2);
+          .toFixed(2) : '0.00';
 
                 // Get unique customers
-                const uniqueCustomers = [...new Set(workOrders.map((job: any) => job.customer))].length;
+        const uniqueCustomers = workOrders ? [...new Set(workOrders.map((job: any) => job.customer))].length : 0;
 
-                // Get customers with open jobs
-                const customersWithOpenJobs = [...new Set(
+        // Get customers with different job statuses
+        const customersWithConfirmedJobs = workOrders ? [...new Set(
+          workOrders
+            .filter((job: any) => job.status === 'confirmed')
+            .map((job: any) => job.customer)
+        )].length : 0;
+        
+        const customersWithInProgressJobs = workOrders ? [...new Set(
+          workOrders
+            .filter((job: any) => ['in_progress', 'in-progress'].includes(job.status))
+            .map((job: any) => job.customer)
+        )].length : 0;
+        
+        const customersWithCompletedJobs = workOrders ? [...new Set(
                   workOrders
-                    .filter((job: any) => ['pending', 'confirmed', 'en_route', 'in_progress'].includes(job.status))
+            .filter((job: any) => job.status === 'completed')
                     .map((job: any) => job.customer)
-                )].length;
+        )].length : 0;
+        
+        // Total customers with open jobs
+        const customersWithOpenJobs = customersWithConfirmedJobs + customersWithInProgressJobs + customersWithCompletedJobs;
 
                 // Today's schedule
-                const todaysSchedule = workOrders
+        const todaysSchedule = workOrders ? workOrders
                   .filter((job: any) => {
                     const jobDate = new Date(job.scheduled_for);
                     jobDate.setHours(0, 0, 0, 0);
@@ -99,15 +163,23 @@ const DashboardOverview = () => {
                     address: job.address,
                     scheduled_for: job.scheduled_for,
                     status: job.status
-                  }));
+          })) : [];
 
-                // Alerts
-                const alerts = [];
-                if (overdueJobs > 0) {
-                  alerts.push(`${overdueJobs} job(s) are overdue!`);
-                }
+                                  // Calculate alerts using the dedicated function
+          const alerts = calculateAlerts(workOrders || [], inventoryList || []);
 
-                setDashboard({
+        // Use the API data for job counts
+        const statusCounts = data.status_counts || {};
+        const confirmedJobs = statusCounts.confirmed || 0;
+        const inProgressJobs = statusCounts.in_progress || 0;
+        const completedJobs = statusCounts.completed || 0;
+        const pendingJobs = statusCounts.pending || 0;
+        const cancelledJobs = statusCounts.cancelled || 0;
+        
+        // Total open jobs (confirmed + in_progress + completed)
+        const openJobs = confirmedJobs + inProgressJobs + completedJobs;
+
+        const dashboardData = {
                   jobs_today: jobsToday,
                   jobs_today_change: 0, // Can't calculate without historical data
                   revenue_this_month: revenueThisMonth,
@@ -116,64 +188,88 @@ const DashboardOverview = () => {
                   customers_with_open_jobs: customersWithOpenJobs,
                   new_customers_this_week: 0, // Can't calculate without historical data
                   open_jobs: openJobs,
+          confirmed_jobs: confirmedJobs,
+          in_progress_jobs: inProgressJobs,
+          completed_jobs: completedJobs,
+          pending_jobs: pendingJobs,
+          cancelled_jobs: cancelledJobs,
+          customers_with_confirmed_jobs: customersWithConfirmedJobs,
+          customers_with_in_progress_jobs: customersWithInProgressJobs,
+          customers_with_completed_jobs: customersWithCompletedJobs,
                   overdue_jobs: overdueJobs,
                   todays_schedule: todaysSchedule,
-                  alerts: alerts
-                });
-              } else {
-                // Fallback if work orders fetch fails
-                setDashboard({
-                  jobs_today: 0,
-                  jobs_today_change: 0,
-                  revenue_this_month: '0.00',
-                  revenue_change_percent: 0,
-                  active_customers: 0,
-                  customers_with_open_jobs: 0,
-                  new_customers_this_week: 0,
-                  open_jobs: 0,
-                  overdue_jobs: 0,
-                  todays_schedule: [],
-                  alerts: []
-                });
-              }
-            } catch (workOrdersError) {
-              // Fallback if work orders fetch fails
-              setDashboard({
-                jobs_today: 0,
-                jobs_today_change: 0,
-                revenue_this_month: '0.00',
-                revenue_change_percent: 0,
-                active_customers: 0,
-                customers_with_open_jobs: 0,
-                new_customers_this_week: 0,
-                open_jobs: 0,
-                overdue_jobs: 0,
-                todays_schedule: [],
-                alerts: []
-              });
+          alerts: alerts,
+          total_count: data.total_count || 0,
+          user_role: data.user_role || 'unknown',
+          business_type: data.business_type || 'unknown'
+        };
+        
+        console.log('Setting dashboard data with API counts:', dashboardData);
+        setDashboard(dashboardData);
+        setLoading(false);
+      } catch (error) {
+        console.error('Error fetching status counts:', error);
+        // Fallback to work orders calculation if API fails
+        if (workOrders && workOrders.length > 0) {
+          console.log('Falling back to work orders calculation...');
+          // ... existing fallback logic
             }
             setLoading(false);
-            return;
-          }
-          throw new Error('Failed to fetch dashboard metrics');
-        }
-        const data = await res.json();
-        setDashboard(data);
-      } catch (err: any) {
-        // Only log non-403 errors
-        if (!err.message?.includes('403')) {
-          console.error('Dashboard fetch error:', err);
-        }
-        setError(err.message || 'Unknown error');
-      } finally {
-        setLoading(false);
       }
     };
-    fetchDashboard();
-  }, []);
+
+         fetchStatusCounts();
+   }, [user, workOrders, inventoryList]);
+
+       // Remove the old dashboard fetch since we're using the new status counts API
+
+  // Fallback: If no work orders are loaded after 3 seconds, force fetch them
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (user && (!workOrders || workOrders.length === 0)) {
+        console.log('Fallback: Force fetching work orders for dashboard...');
+        getWorkOrders(true);
+      }
+    }, 3000);
+
+    return () => clearTimeout(timer);
+  }, [user, workOrders]);
+
+     // Fallback: If no inventory is loaded after 3 seconds, force fetch it
+   useEffect(() => {
+     const timer = setTimeout(() => {
+       if (user && (!inventoryList || inventoryList.length === 0)) {
+         console.log('Fallback: Force fetching inventory for dashboard...');
+         getInventory(true);
+       }
+     }, 3000);
+
+     return () => clearTimeout(timer);
+   }, [user, inventoryList, getInventory]);
+
+   // Force dashboard recalculation when inventory data becomes available
+   useEffect(() => {
+     if (user && inventoryList && inventoryList.length > 0 && dashboard) {
+       console.log('Inventory data available, recalculating dashboard alerts...');
+       // Recalculate alerts and update dashboard
+       const updatedAlerts = calculateAlerts(workOrders || [], inventoryList || []);
+       setDashboard((prev: any) => ({ 
+         ...prev, 
+         alerts: updatedAlerts 
+       }));
+     }
+   }, [user, inventoryList, dashboard, workOrders]);
 
   // Use a safe fallback for tradeConfig
   const tradeConfig = tradeConfigs[user?.primary_trade as keyof typeof tradeConfigs] || { color: 'bg-blue-500', icon: null, name: '' };
+
+     // Debug: Log dashboard state
+   console.log('=== DASHBOARD DISPLAY DEBUG ===');
+   console.log('dashboard state:', dashboard);
+   console.log('dashboard?.open_jobs:', dashboard?.open_jobs);
+   console.log('inventoryList from context:', inventoryList);
+   console.log('inventoryList type:', typeof inventoryList);
+   console.log('inventoryList length:', inventoryList ? inventoryList.length : 'null/undefined');
 
   // Defensive fallback for all dashboard fields
   const jobsToday = dashboard?.jobs_today ?? 0;
@@ -184,9 +280,41 @@ const DashboardOverview = () => {
   const customersWithOpenJobs = dashboard?.customers_with_open_jobs ?? 0;
   const newCustomersThisWeek = dashboard?.new_customers_this_week ?? 0;
   const openJobs = dashboard?.open_jobs ?? 0;
+   const confirmedJobs = dashboard?.confirmed_jobs ?? 0;
+   const inProgressJobs = dashboard?.in_progress_jobs ?? 0;
+   const completedJobs = dashboard?.completed_jobs ?? 0;
+   const customersWithConfirmedJobs = dashboard?.customers_with_confirmed_jobs ?? 0;
+   const customersWithInProgressJobs = dashboard?.customers_with_in_progress_jobs ?? 0;
+   const customersWithCompletedJobs = dashboard?.customers_with_completed_jobs ?? 0;
   const overdueJobs = dashboard?.overdue_jobs ?? 0;
   const todaysSchedule = dashboard?.todays_schedule ?? [];
   const alerts = dashboard?.alerts ?? [];
+  
+  console.log('Final openJobs value for display:', openJobs);
+  console.log('=== END DASHBOARD DISPLAY DEBUG ===');
+  
+  // Fallback: If dashboard doesn't have open_jobs but we have work orders, calculate it directly
+  let finalOpenJobs = openJobs;
+  if (openJobs === 0 && workOrders && workOrders.length > 0) {
+    const calculatedOpenJobs = workOrders.filter((job: any) =>
+      ['confirmed', 'in_progress', 'in-progress'].includes(job.status)
+    ).length;
+    console.log('Using fallback calculation - openJobs:', calculatedOpenJobs);
+    finalOpenJobs = calculatedOpenJobs;
+  }
+
+  // Navigation handlers
+  const handleOpenJobsClick = () => {
+    navigate('/jobs');
+  };
+
+     const handleCustomersWithOpenJobsClick = () => {
+     navigate('/customers');
+   };
+
+   const handleInventoryClick = () => {
+     navigate('/inventory');
+   };
 
   if (loading) return (
     <div className="p-4 lg:p-6 animate-pulse">
@@ -278,31 +406,44 @@ const DashboardOverview = () => {
       change: `+${newCustomersThisWeek} this week`
     },
     {
-      title: 'Open Jobs',
-      value: openJobs,
+       title: 'Confirmed Jobs',
+       value: confirmedJobs,
       icon: ClipboardList,
-      color: 'bg-orange-500',
-      change: `${overdueJobs} overdue`
-    },
-    {
-      title: 'Customers with Open Jobs',
-      value: customersWithOpenJobs,
-      icon: Users,
+       color: 'bg-yellow-500',
+       change: `${customersWithConfirmedJobs} customers`,
+       clickable: true,
+       onClick: handleOpenJobsClick
+     },
+     {
+       title: 'In Progress Jobs',
+       value: inProgressJobs,
+       icon: ClipboardList,
       color: 'bg-blue-500',
-      change: ''
-    },
-    {
-      title: 'New Customers This Week',
-      value: newCustomersThisWeek,
-      icon: Users,
-      color: 'bg-indigo-500',
-      change: ''
+       change: `${customersWithInProgressJobs} customers`,
+       clickable: true,
+       onClick: handleOpenJobsClick
+     },
+     {
+       title: 'Completed Jobs',
+       value: completedJobs,
+       icon: ClipboardList,
+       color: 'bg-green-500',
+       change: `${customersWithCompletedJobs} customers`,
+       clickable: true,
+       onClick: handleOpenJobsClick
     }
   ];
 
   // Handle new alerts format (object with keys)
   let alertCards: JSX.Element[] = [];
+  
+  console.log('=== ALERT DISPLAY DEBUG ===');
+  console.log('alerts:', alerts);
+  console.log('alerts type:', typeof alerts);
+  console.log('alerts isArray:', Array.isArray(alerts));
+  
   if (alerts && typeof alerts === 'object' && !Array.isArray(alerts)) {
+    console.log('Processing alerts as object');
     if (alerts.low_inventory > 0) {
       alertCards.push(
         <div key="low-inventory" className="flex items-start space-x-3 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
@@ -326,7 +467,36 @@ const DashboardOverview = () => {
       );
     }
   } else if (Array.isArray(alerts)) {
-    alertCards = alerts.map((alert: string, idx: number) => (
+    console.log('Processing alerts as array with', alerts.length, 'items');
+    alertCards = alerts.map((alert: any, idx: number) => {
+             // Handle new object format for low inventory alerts
+       if (typeof alert === 'object' && alert.type === 'low_inventory') {
+         return (
+           <div 
+             key={idx} 
+             className="flex items-start space-x-3 p-3 bg-red-50 border border-red-200 rounded-lg cursor-pointer hover:bg-red-100 transition-colors"
+             onClick={handleInventoryClick}
+           >
+             <AlertTriangle className="text-red-500 mt-1 flex-shrink-0" size={16} />
+             <div className="min-w-0 flex-1">
+               <p className="font-medium text-red-900 text-sm lg:text-base">Low Stock Alert</p>
+               <p className="text-xs lg:text-sm text-red-700">{alert.message}:</p>
+               {alert.items && alert.items.length > 0 && (
+                 <div className="mt-1">
+                   {alert.items.map((item: any, itemIdx: number) => (
+                     <span key={itemIdx} className="inline-block bg-red-100 text-red-800 text-xs px-2 py-1 rounded-full mr-1 mb-1">
+                       {item.name} ({item.quantity} left)
+                     </span>
+                   ))}
+                 </div>
+               )}
+             </div>
+           </div>
+         );
+       }
+      
+      // Handle string format alerts
+      return (
       <div key={idx} className="flex items-start space-x-3 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
         <AlertTriangle className="text-yellow-500 mt-1 flex-shrink-0" size={16} />
         <div className="min-w-0 flex-1">
@@ -334,8 +504,14 @@ const DashboardOverview = () => {
           <p className="text-xs lg:text-sm text-yellow-700">{alert ?? '-'}</p>
         </div>
       </div>
-    ));
+      );
+    });
   }
+  
+     console.log('alertCards generated:', alertCards.length);
+   console.log('=== END ALERT DISPLAY DEBUG ===');
+
+   // Remove test alert - now using real inventory data
 
   return (
     <div className="p-4 lg:p-6">
@@ -348,11 +524,15 @@ const DashboardOverview = () => {
       </div>
 
       {/* Stats Grid */}
-      <div className="grid grid-cols-2 lg:grid-cols-3 gap-3 lg:gap-6 mb-6 lg:mb-8">
+       <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-3 lg:gap-6 mb-6 lg:mb-8">
         {stats.map((stat, index) => {
           const Icon = stat.icon;
           return (
-            <div key={index} className="bg-white rounded-lg p-4 lg:p-6 shadow-sm border border-slate-200">
+            <div 
+              key={index} 
+              className={`bg-white rounded-lg p-4 lg:p-6 shadow-sm border border-slate-200 ${stat.clickable ? 'cursor-pointer hover:shadow-md transition-shadow' : ''}`}
+              onClick={stat.onClick}
+            >
               <div className="flex items-center justify-between mb-3 lg:mb-4">
                 <div className={`p-2 lg:p-3 rounded-lg ${stat.color}`}>
                   <Icon className="text-white" size={16} />
@@ -423,7 +603,7 @@ const DashboardOverview = () => {
             <Wrench className="text-blue-500 mt-1 flex-shrink-0" size={16} />
             <div className="min-w-0 flex-1">
               <p className="font-medium text-blue-900 text-sm lg:text-base">Seasonal Reminder</p>
-              <p className="text-xs lg:text-sm text-blue-700">{customersWithOpenJobs} customers due for maintenance</p>
+               <p className="text-xs lg:text-sm text-blue-700">{customersWithConfirmedJobs + customersWithInProgressJobs} customers with active jobs</p>
             </div>
           </div>
         </div>
